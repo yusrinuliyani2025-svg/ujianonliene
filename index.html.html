@@ -1,0 +1,2038 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Ujian Online Perangkat Desa</title>
+    <!-- Tailwind CSS untuk tata letak modern -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&family=Afacad+Flux:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Pustaka html2pdf.js untuk Ekspor PDF Instan -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        :root {
+            --dark-blue: #2c3b4e;
+            --darker-blue: #222d3a;
+            --light-blue: #ecf0f5;
+            --primary-blue: #3c8dbc;
+            --text-dark: #333333;
+            --border-color: #d2d6de;
+            --orange-accent: #f39c12;
+            --green-accent: #00a65a;
+            --red-accent: #dd4b39;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Afacad Flux', Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--light-blue);
+            color: var(--text-dark);
+            min-height: 100vh;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Banner Status Demo/Offline */
+        .demo-banner {
+            background: #fff3cd;
+            color: #856404;
+            border-bottom: 1px solid #ffeeba;
+            padding: 10px 15px;
+            font-size: 14px;
+            text-align: center;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .login-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #d2d6de;
+            padding: 20px;
+        }
+        .login-card {
+            background: #fff;
+            padding: 40px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px;
+        }
+        .login-card h2 { 
+            text-align: center; 
+            margin-bottom: 5px; 
+            color: var(--dark-blue); 
+            font-family: 'Comfortaa', cursive;
+            font-size: 28px;
+        }
+        .subtitle { text-align: center; color: #777; margin-bottom: 30px; font-size: 15px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 15px; }
+        .form-group input { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1px solid var(--border-color); 
+            border-radius: 4px; 
+            font-size: 15px;
+            outline: none;
+        }
+        .form-group input:focus {
+            border-color: var(--primary-blue);
+        }
+        input#token {
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        .btn-primary-block { 
+            width: 100%; 
+            background: var(--primary-blue); 
+            color: #fff; 
+            border: none; 
+            padding: 14px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            border-radius: 4px; 
+            font-size: 16px; 
+            margin-top: 10px;
+            transition: background 0.2s;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-primary-block:hover { background: #367fa9; }
+        .btn-primary-block:disabled { background: #a2c2e8; cursor: not-allowed; }
+
+        .waiting-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #cbd5e1;
+            padding: 20px;
+        }
+        .waiting-card {
+            background: #fff;
+            padding: 35px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 600px;
+            border-top: 5px solid var(--orange-accent);
+        }
+        .waiting-card h2 {
+            color: var(--dark-blue);
+            font-size: 24px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .waiting-info {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--primary-blue);
+        }
+        .waiting-info p {
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+        .waiting-info p:last-child {
+            margin-bottom: 0;
+        }
+        .rules-box {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+        .rules-box h4 {
+            font-size: 16px;
+            color: var(--red-accent);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .rules-box ul {
+            padding-left: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .status-badge-waiting {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            color: var(--orange-accent);
+            margin-bottom: 20px;
+            font-size: 15px;
+        }
+        .pulsing-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--orange-accent);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.8; }
+        }
+        .btn-waiting {
+            width: 100%;
+            padding: 15px;
+            font-weight: bold;
+            font-size: 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-waiting:disabled {
+            background: #cbd5e1;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+        .btn-waiting.ready {
+            background: var(--green-accent);
+            color: white;
+            box-shadow: 0 4px 10px rgba(0, 166, 90, 0.3);
+        }
+        .btn-waiting.ready:hover {
+            background: #008d4c;
+        }
+
+        .custom-dialog-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .custom-dialog-box {
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 440px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+            animation: modalFadeIn 0.3s ease;
+        }
+        @keyframes modalFadeIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .dialog-header {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--dark-blue);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .dialog-body {
+            font-size: 15px;
+            color: #555;
+            line-height: 1.5;
+            margin-bottom: 25px;
+        }
+        .dialog-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .dialog-btn {
+            padding: 10px 20px;
+            font-weight: bold;
+            font-size: 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s;
+        }
+        .dialog-btn-primary {
+            background: var(--primary-blue);
+            color: white;
+        }
+        .dialog-btn-primary:hover {
+            background: #367fa9;
+        }
+        .dialog-btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        .dialog-btn-secondary:hover {
+            background: #cbd5e1;
+        }
+        .dialog-btn-danger {
+            background: var(--red-accent);
+            color: white;
+        }
+        .dialog-btn-danger:hover {
+            background: #c53030;
+        }
+
+        .admin-wrapper { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background: var(--dark-blue); color: #fff; flex-shrink: 0; }
+        .sidebar .brand { background: #367fa9; padding: 20px 15px; font-size: 20px; text-align: center; font-weight: bold; font-family: 'Comfortaa', cursive; }
+        .user-profile { display: flex; padding: 20px 15px; background: var(--darker-blue); align-items: center; gap: 15px; }
+        .avatar-circle { width: 50px; height: 50px; background: #f39c12; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; }
+        .profile-info .name { display: block; font-weight: bold; text-transform: capitalize; font-size: 16px; }
+        .profile-info .role { font-size: 13px; color: #a9b7c6; }
+        .sidebar-menu a { display: block; padding: 15px; color: #b8c7ce; text-decoration: none; font-size: 15px; border-left: 3px solid transparent; cursor: pointer; }
+        .sidebar-menu a:hover, .sidebar-menu a.active { background: var(--darker-blue); color: #fff; border-left-color: var(--primary-blue); }
+        .sidebar-menu a i { margin-right: 10px; width: 20px; text-align: center; }
+        .arrow-right { float: right; font-size: 11px; margin-top: 5px; }
+
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; }
+        .top-bar { background: var(--primary-blue); height: 60px; display: flex; align-items: center; padding: 0 20px; color: #fff; font-size: 24px; }
+        .content-body { padding: 30px; overflow-y: auto; }
+        .welcome-box { background: #fff; padding: 30px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); border-top: 3px solid #d2d6de; margin-bottom: 25px; }
+        .welcome-box h1 { font-size: 40px; font-weight: 300; margin-bottom: 10px; }
+        .welcome-box p { color: #777; font-size: 16px; }
+
+        .config-card {
+            background: #fff;
+            padding: 30px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            border-top: 3px solid var(--orange-accent);
+            margin-bottom: 25px;
+        }
+        .config-card h2 { margin-bottom: 15px; color: var(--dark-blue); font-size: 22px; }
+        .current-token-badge {
+            background: #fcf8e3;
+            border: 1px solid #fbeed5;
+            color: #c09853;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        /* Config Sub-Tabs */
+        .config-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 25px;
+            gap: 5px;
+        }
+        .config-tab-btn {
+            padding: 12px 20px;
+            font-size: 15px;
+            font-weight: bold;
+            background: #f4f6f9;
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
+            color: #555;
+            transition: all 0.2s;
+        }
+        .config-tab-btn:hover {
+            background: #e2e8f0;
+        }
+        .config-tab-btn.active {
+            background: #fff;
+            color: var(--primary-blue);
+            border-top: 3px solid var(--primary-blue);
+            margin-bottom: -1px;
+            height: calc(100% + 1px);
+        }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+        .stat-card { background: #fff; display: flex; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); overflow: hidden; }
+        .stat-icon { width: 90px; display: flex; justify-content: center; align-items: center; font-size: 40px; }
+        .stat-text { padding: 20px; flex-grow: 1; text-align: right; }
+        .stat-text h3 { font-size: 32px; font-weight: bold; margin-bottom: 5px; color: #333; }
+        .stat-text p { font-size: 15px; color: #777; font-weight: bold; }
+        
+        .blue .stat-icon { background: #00c0ef; color: #fff; }
+        .orange .stat-icon { background: #f39c12; color: #fff; }
+        .orange-light .stat-icon { background: #f39c12; color: #fff; }
+        .green .stat-icon { background: #00a65a; color: #fff; }
+
+        .table-card {
+            background: #fff;
+            padding: 25px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            border-top: 3px solid var(--primary-blue);
+        }
+        .table-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .table-card h2 { font-size: 22px; }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-action {
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .btn-action-primary {
+            background: var(--primary-blue);
+            color: white;
+        }
+        .btn-action-primary:hover {
+            background: #367fa9;
+        }
+        .btn-action-green {
+            background: var(--green-accent);
+            color: white;
+        }
+        .btn-action-green:hover {
+            background: #008d4c;
+        }
+        .btn-action-red {
+            background: var(--red-accent);
+            color: white;
+        }
+        .btn-action-red:hover {
+            background: #c53030;
+        }
+        .btn-action-outline {
+            border-color: var(--border-color);
+            background: #fff;
+            color: #555;
+        }
+        .btn-action-outline:hover {
+            background: #f7f9fa;
+        }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid var(--border-color); padding: 12px; text-align: left; }
+        th { background-color: #f4f6f9; font-weight: bold; }
+
+        /* Badge status styling */
+        .badge {
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 12px;
+            display: inline-block;
+        }
+        .badge-green { background: #e6f4ea; color: #137333; }
+        .badge-orange { background: #fef7e0; color: #b06000; }
+        .badge-red { background: #fce8e6; color: #c5221f; }
+        .badge-blue { background: #e8f0fe; color: #1a73e8; }
+        .badge-gray { background: #f1f3f4; color: #5f6368; }
+
+        .exam-wrapper { display: flex; flex-direction: column; height: 100vh; background: #a2c2e8; }
+        .exam-top-bar { background: #4a6572; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 15px; border-bottom: 2px solid #34495e; }
+        .timer-box { display: flex; gap: 6px; }
+        .timer-unit { background: #34495e; padding: 6px 12px; border-radius: 3px; text-align: center; min-width: 50px; }
+        .timer-unit span { display: block; font-size: 20px; font-weight: bold; color: #00ff00; }
+        .timer-unit small { font-size: 9px; display: block; color: #bdc3c7; font-weight: bold; }
+
+        .exam-container { display: flex; flex-grow: 1; overflow: hidden; }
+        .exam-main { flex-grow: 1; padding: 25px; display: flex; flex-direction: column; overflow-y: auto; background: #ffffff; }
+        .question-nav-top { display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 25px; }
+        .nav-arrow { background: #34495e; color: #fff; border: none; padding: 12px 24px; font-size: 20px; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
+        .nav-arrow:hover { background: #222d3a; }
+        .current-badge { background: #34495e; color: #fff; padding: 12px 30px; font-size: 24px; font-weight: bold; border-radius: 4px; }
+
+        .question-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; flex-grow: 1; }
+        @media (max-width: 900px) { .question-wrapper { grid-template-columns: 1fr; } }
+        .question-section, .answers-section { border: 1px solid var(--border-color); border-radius: 4px; display: flex; flex-direction: column; overflow: hidden; background: #fafafa; }
+        .section-title { background: #d2d6de; padding: 12px 15px; font-weight: bold; border-bottom: 1px solid var(--border-color); font-size: 16px; color: var(--dark-blue); }
+        #question-text { padding: 20px; font-size: 16px; line-height: 1.6; background: #fff; flex-grow: 1; }
+
+        .options-list { padding: 20px; display: flex; flex-direction: column; gap: 12px; background: #fff; flex-grow: 1; }
+        .option-btn { display: flex; align-items: center; gap: 15px; border: 1px solid var(--border-color); border-radius: 4px; padding: 14px; cursor: pointer; transition: all 0.2s; }
+        .option-btn:hover { background: #f4f6f9; border-color: #bee3f8; }
+        .option-btn.selected { border-color: var(--primary-blue); background: #e8f4fd; }
+        .option-letter { background: #34495e; color: #fff; width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; border-radius: 50%; font-weight: bold; font-size: 15px; flex-shrink: 0; }
+        .option-btn.selected .option-letter { background: var(--primary-blue); }
+        .option-text { font-size: 15px; }
+
+        .exam-sidebar { width: 260px; background: #a2c2e8; padding: 20px; display: flex; flex-direction: column; gap: 15px; flex-shrink: 0; }
+        .btn-finish-exam { background: #34495e; color: #fff; border: none; padding: 14px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 15px; width: 100%; text-transform: uppercase; transition: background 0.2s; }
+        .btn-finish-exam:hover { background: #dd4b39; }
+        .grid-box { background: #fff; border: 1px solid #7f9bbf; border-radius: 4px; padding: 8px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; }
+        .grid-title { text-align: center; font-weight: bold; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #ccc; margin-bottom: 10px; text-transform: uppercase; }
+        .bg-gray { background: #e2e2e2; margin-top: 20px; }
+
+        .number-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+        .num-box { border: 1px solid #7f9bbf; text-align: center; font-size: 11px; cursor: pointer; background: #fff; padding: 5px 0; position: relative; border-radius: 3px; display: flex; flex-direction: column; align-items: center;}
+        .num-box .indicator-letter { display: block; font-weight: bold; font-size: 12px; margin-bottom: 2px; height: 16px; color: var(--primary-blue); }
+        .num-box .circle-status { width: 14px; height: 14px; border-radius: 50%; background: #ebf3fc; display: inline-block; border: 1px solid #7f9bbf; }
+        .num-box.active { border: 2px solid #dd4b39; }
+        .num-box.answered .circle-status { background: var(--dark-blue); border-color: var(--dark-blue); }
+        .num-box.answered .indicator-letter { color: #fff; }
+
+        .number-grid-uraian { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 5px; }
+        .uraian-num { border: 1px solid #7f9bbf; text-align: center; padding: 12px 0; background: #fff; font-size: 14px; font-weight: bold; border-radius: 3px; cursor: pointer; }
+
+        .result-wrapper { display: flex; justify-content: center; align-items: center; height: 100vh; background: #ecf0f5; }
+        .result-card { background: #fff; padding: 45px; border-radius: 5px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 480px; }
+        .success-icon { font-size: 70px; color: var(--green-accent); margin-bottom: 20px; }
+        .score-display { margin: 25px 0; background: #f9f9f9; padding: 20px; border-radius: 5px; border: 1px solid #eee; }
+        .score-display .label { display: block; color: #666; font-size: 15px; font-weight: bold; margin-bottom: 5px; }
+        #final-score { font-size: 56px; font-weight: bold; color: var(--primary-blue); }
+
+        /* PRINT STYLING & CONTAINERS */
+        #print-ba-container, #print-kartu-container {
+            display: none;
+        }
+
+        /* Berita Acara Document Styling */
+        .kop-surat {
+            border-bottom: 4px double #000;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .kop-surat h2 { font-size: 20px; text-transform: uppercase; margin-bottom: 2px; }
+        .kop-surat h3 { font-size: 24px; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }
+        .kop-surat p { font-size: 12px; font-style: italic; color: #555; }
+        
+        .doc-title { text-align: center; text-transform: uppercase; font-weight: bold; font-size: 18px; margin-bottom: 25px; text-decoration: underline; }
+        .doc-p { font-size: 15px; line-height: 1.8; margin-bottom: 15px; text-align: justify; }
+        
+        .doc-table-info { width: 100%; margin: 15px 0 25px 0; font-size: 15px; }
+        .doc-table-info td { border: none !important; padding: 6px 12px !important; }
+        .doc-table-info td:first-child { width: 200px; font-weight: bold; }
+        .doc-table-info td:nth-child(2) { width: 15px; }
+
+        .signature-section {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 15px;
+        }
+        .signature-box {
+            text-align: center;
+            width: 250px;
+        }
+        .signature-space {
+            height: 80px;
+        }
+
+        /* Kartu Peserta Styling */
+        .kartu-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .exam-card-print {
+            border: 2px solid #000;
+            padding: 15px;
+            border-radius: 8px;
+            background: #fff;
+            position: relative;
+            page-break-inside: avoid;
+        }
+        .kartu-header {
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .kartu-header h4 { font-size: 14px; text-transform: uppercase; margin-bottom: 2px; }
+        .kartu-header p { font-size: 10px; color: #555; }
+        
+        .kartu-body {
+            display: flex;
+            gap: 15px;
+        }
+        .kartu-foto {
+            width: 90px;
+            height: 120px;
+            border: 1px dashed #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #777;
+            background: #fafafa;
+            flex-shrink: 0;
+            font-weight: bold;
+        }
+        .kartu-details {
+            flex-grow: 1;
+            font-size: 12px;
+        }
+        .kartu-details table { margin-top: 0; width: 100%; }
+        .kartu-details td { border: none !important; padding: 4px 6px !important; }
+        .kartu-details td:first-child { font-weight: bold; width: 80px; }
+        .kartu-details td:nth-child(2) { width: 10px; }
+
+        .kartu-footer {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            font-size: 11px;
+        }
+        .barcode-placeholder {
+            border: 1px solid #777;
+            padding: 5px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 10px;
+            letter-spacing: 3px;
+            background: #eee;
+            text-align: center;
+            width: 110px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="demo-banner" class="demo-banner">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>Menjalankan Aplikasi dalam Mode Demo/Offline (Spreadsheet belum terhubung). Token Aktif: DESA2026</span>
+    </div>
+
+    <!-- Dialog Konfirmasi Kustom Modern (Menggantikan confirm/alert standar) -->
+    <div id="custom-dialog" class="custom-dialog-overlay hidden">
+        <div class="custom-dialog-box">
+            <div id="dialog-title" class="dialog-header">Konfirmasi</div>
+            <div id="dialog-msg" class="dialog-body">Apakah Anda yakin dengan tindakan ini?</div>
+            <div class="dialog-footer">
+                <button id="dialog-btn-cancel" class="dialog-btn dialog-btn-secondary">Batal</button>
+                <button id="dialog-btn-confirm" class="dialog-btn dialog-btn-primary">Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= HALAMAN LOGIN ================= -->
+    <div id="login-page" class="login-container">
+        <div class="login-card">
+            <h2><i class="fa-solid fa-graduation-cap"></i> Ujian Perangkat Desa</h2>
+            <p class="subtitle">Silakan login menggunakan data diri Anda</p>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="nama">Nama Lengkap</label>
+                    <input type="text" id="nama" required placeholder="Masukkan Nama Lengkap">
+                </div>
+                <div class="form-group">
+                    <label for="nik">NIK / ID User</label>
+                    <input type="text" id="nik" required placeholder="Masukkan NIK atau ID">
+                </div>
+                <div class="form-group">
+                    <label for="token">Token Ujian / Sandi Akses</label>
+                    <input type="text" id="token" required placeholder="MENGHUBUNGKAN KE SERVER..." disabled>
+                </div>
+                <button type="submit" id="btn-submit-login" class="btn-primary-block" disabled>Mengunduh Data...</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= HALAMAN RUANG TUNGGU PESERTA ================= -->
+    <div id="waiting-page" class="waiting-container hidden">
+        <div class="waiting-card">
+            <h2><i class="fa-solid fa-clock-rotate-left"></i> Ruang Tunggu Ujian</h2>
+            <p class="subtitle" style="text-align: left; margin-bottom: 15px;">Harap tunggu beberapa saat sebelum pengerjaan ujian dimulai.</p>
+            
+            <div class="waiting-info">
+                <p><i class="fa-solid fa-user"></i> Nama Peserta: <strong id="wait-nama">-</strong></p>
+                <p><i class="fa-solid fa-id-card"></i> NIK / ID: <code id="wait-nik">-</code></p>
+                <p><i class="fa-solid fa-network-wired"></i> Status Sistem: <strong style="color: var(--green-accent);">TERHUBUNG (SIAP)</strong></p>
+            </div>
+
+            <div class="rules-box">
+                <h4><i class="fa-solid fa-triangle-exclamation"></i> TATA TERTIB & ATURAN UJIAN</h4>
+                <ul>
+                    <li>Dilarang keras meminimalkan jendela browser atau berpindah tab ujian.</li>
+                    <li>Sistem memiliki proteksi otomatis anti-curang. Pindah tab sebanyak 3 kali akan menyebabkan diskualifikasi otomatis.</li>
+                    <li>Waktu ujian akan terus berjalan secara mundur setelah Anda menekan tombol Mulai.</li>
+                    <li>Pastikan koneksi internet stabil sebelum Anda masuk ke ruang ujian.</li>
+                </ul>
+            </div>
+
+            <div class="status-badge-waiting">
+                <div class="pulsing-dot"></div>
+                <span id="waiting-timer-text">Menunggu sinkronisasi ujian...</span>
+            </div>
+
+            <button id="btn-start-exam-now" class="btn-waiting" disabled>MOHON TUNGGU (10)</button>
+        </div>
+    </div>
+
+    <!-- ================= HALAMAN DASHBOARD ADMIN ================= -->
+    <div id="admin-page" class="admin-wrapper hidden">
+        <aside class="sidebar">
+            <div class="brand">Ujian Desa</div>
+            <div class="user-profile">
+                <div class="avatar-circle">
+                    <i class="fa-solid fa-user-tie"></i>
+                </div>
+                <div class="profile-info">
+                    <span id="admin-display-name" class="name">Admin</span>
+                    <span class="role">Administrator</span>
+                </div>
+            </div>
+            <nav class="sidebar-menu">
+                <a id="menu-dashboard" class="active"><i class="fa-solid fa-gauge"></i> Dashboard</a>
+                <a id="menu-konfigurasi"><i class="fa-solid fa-wrench"></i> Konfigurasi <i class="fa-solid fa-chevron-right arrow-right"></i></a>
+                <a id="menu-soal"><i class="fa-solid fa-folder"></i> Soal</a>
+                <a id="menu-nilai"><i class="fa-solid fa-trophy"></i> Nilai Peserta</a>
+                <a id="menu-user"><i class="fa-solid fa-users"></i> User</a>
+                <a href="#" id="btn-logout-admin"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <i class="fa-solid fa-bars toggle-menu"></i>
+            </header>
+            
+            <div class="content-body">
+                <!-- VIEW 1: DASHBOARD STATS -->
+                <div id="view-dashboard">
+                    <div class="welcome-box">
+                        <h1 id="welcome-title">Hai Admin</h1>
+                        <p>Selamat Datang Peserta di Aplikasi Ujian Online Perangkat Desa</p>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card blue">
+                            <div class="stat-icon"><i class="fa-solid fa-file-lines"></i></div>
+                            <div class="stat-text"><h3 id="stat-group-soal">0</h3><p>Soal</p></div>
+                        </div>
+                        <div class="stat-card orange">
+                            <div class="stat-icon"><i class="fa-solid fa-user-graduate"></i></div>
+                            <div class="stat-text"><h3>1</h3><p>Pengawas</p></div>
+                        </div>
+                        <div class="stat-card orange-light">
+                            <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
+                            <div class="stat-text"><h3 id="stat-siswa">0</h3><p>Peserta Selesai</p></div>
+                        </div>
+                        <div class="stat-card green">
+                            <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
+                            <div class="stat-text"><h3>Aktif</h3><p>Status Ujian</p></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 2: KONFIGURASI TOKEN, DURASI, BERITA ACARA, KARTU (MULTITAB) -->
+                <div id="view-konfigurasi" class="hidden">
+                    <div class="config-tabs">
+                        <button class="config-tab-btn active" onclick="switchConfigTab('tab-dasar')">Pengaturan Dasar</button>
+                        <button class="config-tab-btn" onclick="switchConfigTab('tab-berita')">Berita Acara Ujian</button>
+                        <button class="config-tab-btn" onclick="switchConfigTab('tab-kartu')">Cetak Kartu Ujian</button>
+                    </div>
+
+                    <!-- SUB-TAB 1: PENGATURAN DASAR -->
+                    <div id="sub-tab-dasar" class="config-card">
+                        <h2>Pengaturan Ujian Desa</h2>
+                        <div class="current-token-badge">
+                            Token Ujian Saat Ini: <span id="label-token-aktif">MEMUAT...</span>
+                        </div>
+                        <form id="form-update-token">
+                            <div class="form-group">
+                                <label for="new-token-input">Sandi Token Baru</label>
+                                <input type="text" id="new-token-input" placeholder="Contoh: DESA2026" style="text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">
+                            </div>
+                            <div class="form-group">
+                                <label for="new-duration-input">Durasi Ujian (Menit)</label>
+                                <input type="number" id="new-duration-input" value="90" min="5" max="300" required>
+                            </div>
+                            <button type="submit" id="btn-save-token" class="btn-primary-block"><i class="fa-solid fa-floppy-disk"></i> Simpan & Perbarui Database</button>
+                        </form>
+                    </div>
+
+                    <!-- SUB-TAB 2: BERITA ACARA UJIAN -->
+                    <div id="sub-tab-berita" class="config-card hidden">
+                        <h2>Buat Berita Acara Ujian</h2>
+                        <p style="margin-bottom: 20px; color: #666; font-size: 14px;">Lengkapi data di bawah untuk mengekspor Berita Acara Resmi Pelaksanaan Ujian sebagai PDF.</p>
+                        <form id="form-berita-acara" onsubmit="generateAndPrintBA(event)">
+                            <div class="form-group">
+                                <label for="ba-desa">Nama Desa / Wilayah</label>
+                                <input type="text" id="ba-desa" value="Karang Baru" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="ba-kecamatan">Kecamatan</label>
+                                <input type="text" id="ba-kecamatan" value="Karang Baru" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="ba-kabupaten">Kabupaten / Provinsi</label>
+                                <input type="text" id="ba-kabupaten" value="Bangkalan, Jawa Timur" required>
+                            </div>
+                            <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div>
+                                    <label for="ba-tanggal">Tanggal Ujian</label>
+                                    <input type="date" id="ba-tanggal" required>
+                                </div>
+                                <div>
+                                    <label for="ba-waktu">Waktu Mulai - Selesai</label>
+                                    <input type="text" id="ba-waktu" placeholder="Contoh: 08:00 - 09:30 WIB" value="08:00 - 09:30 WIB" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="ba-lokasi">Tempat Pelaksanaan</label>
+                                <input type="text" id="ba-lokasi" value="Balai Pertemuan Kantor Kepala Desa" required>
+                            </div>
+                            <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div>
+                                    <label for="ba-pengawas">Ketua Panitia / Pengawas</label>
+                                    <input type="text" id="ba-pengawas" value="Sujatmiko, S.Sos." required>
+                                </div>
+                                <div>
+                                    <label for="ba-kades">Kepala Desa</label>
+                                    <input type="text" id="ba-kades" value="H. Muhammad Ridwan" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="ba-catatan">Catatan / Kejadian Selama Ujian</label>
+                                <input type="text" id="ba-catatan" value="Ujian berjalan dengan tertib, aman, lancar, dan tanpa kendala teknis." placeholder="Kejadian penting selama pelaksanaan">
+                            </div>
+                            <button type="submit" class="btn-primary-block"><i class="fa-solid fa-file-pdf"></i> Unduh Berita Acara (PDF Instan)</button>
+                        </form>
+                    </div>
+
+                    <!-- SUB-TAB 3: CETAK KARTU UJIAN -->
+                    <div id="sub-tab-kartu" class="config-card hidden" style="max-width: 100%;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <div>
+                                <h2>Unduh Kartu Tanda Peserta (PDF)</h2>
+                                <p style="color: #666; font-size: 14px;">Unduh kartu tanda ujian resmi untuk masing-masing peserta terdaftar.</p>
+                            </div>
+                            <button class="btn-action btn-action-primary" onclick="printAllKartu()"><i class="fa-solid fa-file-pdf"></i> Unduh Semua Kartu (PDF)</button>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>NIK</th>
+                                        <th>Nama Lengkap</th>
+                                        <th>Role / Posisi</th>
+                                        <th style="text-align: center;">Ekspor Dokumen</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-kartu-roster">
+                                    <!-- Daftar roster cetak kartu dimuat di sini -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 3: DETAIL SOAL WITH IMPORT/EXPORT -->
+                <div id="view-soal" class="hidden">
+                    <div class="table-card">
+                        <div class="table-card-header">
+                            <div>
+                                <h2>Bank Soal Terunggah</h2>
+                                <p style="color: #666; font-size: 14px;">Mendukung pengelolaan bank soal langsung via ekspor/impor lokal.</p>
+                            </div>
+                            <div class="button-group">
+                                <button class="btn-action btn-action-outline" id="btn-ekspor-json"><i class="fa-solid fa-file-export"></i> Ekspor (JSON)</button>
+                                <button class="btn-action btn-action-outline" id="btn-ekspor-csv"><i class="fa-solid fa-file-csv"></i> Ekspor (CSV)</button>
+                                <button class="btn-action btn-action-primary" id="btn-trigger-impor"><i class="fa-solid fa-file-import"></i> Impor Berkas</button>
+                                <input type="file" id="file-import-soal" accept=".json,.csv" class="hidden">
+                            </div>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table id="table-bank-soal">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">ID</th>
+                                        <th>Pertanyaan</th>
+                                        <th>Kunci</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="3" style="text-align: center;">Memuat bank soal...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 4: NILAI PESERTA WITH EXPORTS -->
+                <div id="view-nilai" class="hidden">
+                    <div class="table-card">
+                        <div class="table-card-header">
+                            <div>
+                                <h2>Hasil Lembar Ujian Masuk</h2>
+                                <p style="color: #666; font-size: 14px;">Data tersinkronisasi otomatis dari database pengerjaan ujian.</p>
+                            </div>
+                            <div class="button-group">
+                                <button class="btn-action btn-action-green" id="btn-unduh-excel"><i class="fa-solid fa-file-excel"></i> Unduh Excel</button>
+                                <button class="btn-action btn-action-red" id="btn-unduh-pdf"><i class="fa-solid fa-file-pdf"></i> Cetak PDF</button>
+                            </div>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table id="table-nilai-peserta">
+                                <thead>
+                                    <tr>
+                                        <th>Waktu Submit</th>
+                                        <th>Nama Lengkap</th>
+                                        <th>NIK</th>
+                                        <th>Skor</th>
+                                        <th>Status Pengerjaan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="5" style="text-align: center;">Memuat berkas lembar kerja...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 5: DAFTAR USER AKTIF & STATUS MONITORING -->
+                <div id="view-user" class="hidden">
+                    <div class="table-card">
+                        <h2>Pengguna Terdaftar & Status Aktivitas</h2>
+                        <p style="margin-bottom: 15px; color: #666;">Memantau secara langsung status pengerjaan seluruh kandidat.</p>
+                        <div style="overflow-x: auto;">
+                            <table id="table-user-peserta">
+                                <thead>
+                                    <tr>
+                                        <th>NIK / ID User</th>
+                                        <th>Nama Lengkap</th>
+                                        <th>Role</th>
+                                        <th>Status Ujian</th>
+                                        <th style="width: 220px; text-align: center;">Kontrol Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="5" style="text-align: center;">Memuat daftar pengguna...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= HALAMAN PESERTA (EXAM INTERFACE) ================= -->
+    <div id="exam-page" class="exam-wrapper hidden">
+        <header class="exam-top-bar">
+            <div class="meta-left">
+                <span>Nama: <strong id="exam-user-name">Peserta</strong></span>
+            </div>
+            <div class="meta-right">
+                <div class="timer-box">
+                    <div class="timer-unit"><span id="t-jam">00</span><small>JAM</small></div>
+                    <div class="timer-unit"><span id="t-mnt">00</span><small>MNT</small></div>
+                    <div class="timer-unit"><span id="t-dtk">00</span><small>DTK</small></div>
+                </div>
+            </div>
+        </header>
+
+        <div class="exam-container">
+            <div class="exam-main">
+                <div class="question-nav-top">
+                    <button id="btn-prev-top" class="nav-arrow"><i class="fa-solid fa-arrow-left"></i></button>
+                    <div id="current-num-display" class="current-badge">1</div>
+                    <button id="btn-next-top" class="nav-arrow"><i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+
+                <div class="question-wrapper">
+                    <div class="question-section">
+                        <div class="section-title">Soal Pilihan Ganda</div>
+                        <p id="question-text">Menghubungkan data ujian...</p>
+                    </div>
+                    <div class="answers-section">
+                        <div class="section-title">Pilihan Jawaban</div>
+                        <div id="options-container" class="options-list">
+                            <!-- Opsi Pilihan otomatis dimuat di sini -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="exam-sidebar">
+                <button id="btn-submit-exam" class="btn-finish-exam">SELESAI UJIAN</button>
+                
+                <div class="grid-box">
+                    <div class="grid-title">Pilihan Ganda</div>
+                    <div id="number-grid" class="number-grid">
+                        <!-- Grid nomor di-render di sini -->
+                    </div>
+                    <div class="grid-title bg-gray">Soal Uraian</div>
+                    <div class="number-grid-uraian">
+                        <div class="uraian-num">1</div>
+                        <div class="uraian-num">2</div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- ================= HALAMAN HASIL SUBMIT ================= -->
+    <div id="result-page" class="result-wrapper hidden">
+        <div class="result-card">
+            <i class="fa-solid fa-circle-check success-icon"></i>
+            <h2>Ujian Selesai!</h2>
+            <p>Data Anda telah tersimpan dengan aman.</p>
+            <div class="score-display">
+                <span class="label">Skor Akhir Anda</span>
+                <span id="final-score">0</span>
+                <p id="cheat-status"></p>
+            </div>
+            <button id="btn-restart" class="btn-primary-block"><i class="fa-solid fa-house"></i> Kembali ke Menu Login</button>
+        </div>
+    </div>
+
+    <!-- ================= DOKUMEN CETAK BERITA ACARA (HIDDEN FOR PDF EXPORT) ================= -->
+    <div id="print-ba-container" class="p-8 bg-white text-black">
+        <div class="kop-surat">
+            <h2>Pemerintah Kabupaten Bangkalan</h2>
+            <h2>Kecamatan <span class="print-ba-kec">Karang Baru</span></h2>
+            <h3>Kantor Kepala Desa <span class="print-ba-desa">Karang Baru</span></h3>
+            <p>Alamat: Kantor Kepala Desa, Kecamatan Karang Baru, Kab. Bangkalan, Provinsi Jawa Timur</p>
+        </div>
+        <h2 class="doc-title">Berita Acara Pelaksanaan Ujian Seleksi</h2>
+        <p class="doc-p">
+            Pada hari ini, tanggal <strong id="print-ba-tgl-indo">-</strong>, bertempat di <span id="print-ba-lok">-</span>, telah dilaksanakan Ujian Seleksi Masuk Calon Perangkat Desa <span class="print-ba-desa">Karang Baru</span> Kecamatan <span class="print-ba-kec">Karang Baru</span> Kabupaten Bangkalan secara mandiri menggunakan Aplikasi Ujian Online terkomputerisasi.
+        </p>
+        <p class="doc-p">Pelaksanaan ujian berlangsung dengan perincian data sebagai berikut:</p>
+        <table class="doc-table-info">
+            <tr><td>Kecamatan / Desa</td><td>:</td><td><span class="print-ba-kec">Karang Baru</span> / Desa <span class="print-ba-desa">Karang Baru</span></td></tr>
+            <tr><td>Tanggal & Waktu</td><td>:</td><td><span id="print-ba-tgl-full">-</span> (Pukul <span id="print-ba-wkt">-</span>)</td></tr>
+            <tr><td>Lokasi / Ruang</td><td>:</td><td><span id="print-ba-tempat">-</span></td></tr>
+            <tr><td>Pengawas Utama</td><td>:</td><td><span id="print-ba-peng">-</span></td></tr>
+            <tr><td>Kejadian Penting</td><td>:</td><td><span id="print-ba-cat">-</span></td></tr>
+        </table>
+        <p class="doc-p">Demikian Berita Acara ini dibuat dengan sebenarnya untuk dapat dipergunakan sebagaimana mestinya.</p>
+        
+        <div class="signature-section">
+            <div class="signature-box">
+                <p>Mengetahui,</p>
+                <p>Kepala Desa <span class="print-ba-desa">Karang Baru</span></p>
+                <div class="signature-space"></div>
+                <strong id="print-ba-nama-kades">-</strong>
+            </div>
+            <div class="signature-box">
+                <p>Karang Baru, <span id="print-ba-tgl-sekarang">-</span></p>
+                <p>Ketua Panitia / Pengawas</p>
+                <div class="signature-space"></div>
+                <strong id="print-ba-nama-peng">-</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= DOKUMEN CETAK KARTU UJIAN (HIDDEN FOR PDF EXPORT) ================= -->
+    <div id="print-kartu-container" class="p-4 bg-white text-black">
+        <div class="kartu-grid" id="kartu-print-wrapper">
+            <!-- Kartu Peserta otomatis di-inject di sini via JS -->
+        </div>
+    </div>
+
+    <script>
+        // MASUKKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI (Biarkan kosong jika ingin menguji dengan Mode Demo)
+        const API_URL = "https://script.google.com/macros/s/AKfycbx3pWfwOKCoSX4460qy4Q5voozYXTiboM44LmkI_efdO-c2HjnTMAtmPjeAngwceyiokg/exec"; 
+        
+        // Konstanta Token Utama Bypass untuk Masuk ke Dashboard Admin
+        const MASTER_ADMIN_TOKEN = "ADMIN123"; 
+
+        // Aturan waktu pengerjaan ujian dalam menit (default, dapat disinkronkan)
+        let TOTAL_DURASI_MENIT = 90;
+
+        let bankSoal = [];
+        let hasilUjianDiterima = [];
+        let TOKEN_UJIAN_DINAMIS = "DESA2026"; // Fallback default ujian siswa
+        let indeksSekarang = 0;
+        let jawabanUser = {}; 
+        let sisaWaktuDetik = TOTAL_DURASI_MENIT * 60;
+        let intervalTimer = null;
+        let waitingTimerInterval = null;
+        let sisaWaktuTunggu = 10; // Durasi hitung mundur ruang tunggu dalam detik
+        let jumlahPelanggaran = 0;
+        let dataSiswa = {};
+        let isDemoMode = false;
+
+        // Data blokir peserta yang disimpan sementara dalam sesi aktif
+        let daftarNikhBlocked = {};
+
+        const DAFTAR_ROSTER_PESERTA = [
+            { nik: "3501012345670001", nama: "Obrin" },
+            { nik: "3501012345670002", nama: "Muhid" },
+            { nik: "3501012345670003", nama: "Siti Aminah" },
+            { nik: "3501012345670004", nama: "Ahmad Subarjo" },
+            { nik: "3501012345670005", nama: "Dewi Lestari" }
+        ];
+
+        // Track local active logins within simulation session
+        let activeSessions = {}; 
+
+        // Element Selektor Login & Ruang Tunggu
+        const inputTokenField = document.getElementById('token');
+        const btnSubmitLogin = document.getElementById('btn-submit-login');
+        const halamanTunggu = document.getElementById('waiting-page');
+        const btnMulaiUjianSekarang = document.getElementById('btn-start-exam-now');
+        const txtTimerTunggu = document.getElementById('waiting-timer-text');
+
+        // MOCK DATA: Berisi Bank Soal Berkualitas Tinggi untuk Menjamin Aplikasi Berjalan Normal Dalam Mode Offline/Demo
+        const DEMO_QUESTIONS = [
+            {
+                id: 1,
+                pertanyaan: "Siapakah pimpinan tertinggi di dalam struktur organisasi pemerintahan tingkat desa?",
+                a: "Camat",
+                b: "Kepala Desa",
+                c: "Sekretaris Desa",
+                d: "Ketua BPD",
+                e: "Bupati",
+                kunci: "B"
+            },
+            {
+                id: 2,
+                pertanyaan: "Berdasarkan regulasi undang-undang desa terbaru, berapa lamakah masa jabatan Kepala Desa dalam satu periode?",
+                a: "5 Tahun",
+                b: "6 Tahun",
+                c: "7 Tahun",
+                d: "8 Tahun",
+                e: "9 Tahun",
+                kunci: "E"
+            },
+            {
+                id: 3,
+                pertanyaan: "Mana dari berikut ini yang dikategorikan sebagai pendapatan asli desa?",
+                a: "Dana Desa (DD)",
+                b: "Alokasi Dana Desa (ADD)",
+                c: "Hasil usaha milik desa dan swadaya masyarakat",
+                d: "Bantuan keuangan APBD Provinsi",
+                e: "Bagi hasil retribusi daerah kabupaten",
+                kunci: "C"
+            },
+            {
+                id: 4,
+                pertanyaan: "Rencana Pembangunan Jangka Menengah Desa (RPJM Desa) disusun untuk jangka waktu berapa lama?",
+                a: "1 Tahun",
+                b: "3 Tahun",
+                c: "5 Tahun",
+                d: "6 Tahun",
+                e: "9 Tahun",
+                kunci: "E"
+            },
+            {
+                id: 5,
+                pertanyaan: "Lembaga kemasyarakatan desa yang bertugas membimbing dan memberdayakan kesejahteraan keluarga di desa adalah...",
+                a: "Badan Permusyawaratan Desa (BPD)",
+                b: "Pembinaan Kesejahteraan Keluarga (PKK)",
+                c: "Karang Taruna",
+                d: "Lembaga Pemberdayaan Masyarakat (LPM)",
+                e: "Rukun Tetangga (RT)",
+                kunci: "B"
+            }
+        ];
+
+        const DEMO_RESULTS = [
+            { timestamp: new Date(Date.now() - 7200000).toISOString(), nama: "Obrin", nik: "3501012345670001", role: "Peserta", skor: 80, status: "Selesai Mandiri" },
+            { timestamp: new Date(Date.now() - 1800000).toISOString(), nama: "Siti Aminah", nik: "3501012345670003", role: "Peserta", skor: 60, status: "Diskualifikasi (Pindah Tab)" }
+        ];
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Restore local session setups if exists
+            const storedDuration = localStorage.getItem('total_durasi_menit');
+            if (storedDuration) {
+                TOTAL_DURASI_MENIT = parseInt(storedDuration);
+                document.getElementById('new-duration-input').value = TOTAL_DURASI_MENIT;
+                sisaWaktuDetik = TOTAL_DURASI_MENIT * 60;
+            }
+            
+            // Set input date default to today in Berita Acara Form
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('ba-tanggal').value = today;
+
+            await sinkronisasiSistemLatarBelakang();
+            renderTableCetakRosterKartu();
+        });
+
+        function showCustomDialog(title, message, showCancel = true, onConfirm = null) {
+            const overlay = document.getElementById('custom-dialog');
+            const titleEl = document.getElementById('dialog-title');
+            const msgEl = document.getElementById('dialog-msg');
+            const btnCancel = document.getElementById('dialog-btn-cancel');
+            const btnConfirm = document.getElementById('dialog-btn-confirm');
+
+            titleEl.innerText = title;
+            msgEl.innerText = message;
+
+            if (showCancel) {
+                btnCancel.classList.remove('hidden');
+            } else {
+                btnCancel.classList.add('hidden');
+            }
+
+            overlay.classList.remove('hidden');
+
+            // Clean up old event listeners
+            const cleanConfirm = btnConfirm.cloneNode(true);
+            btnConfirm.parentNode.replaceChild(cleanConfirm, btnConfirm);
+            const cleanCancel = btnCancel.cloneNode(true);
+            btnCancel.parentNode.replaceChild(cleanCancel, btnCancel);
+
+            cleanConfirm.addEventListener('click', () => {
+                overlay.classList.add('hidden');
+                if (onConfirm) onConfirm();
+            });
+
+            cleanCancel.addEventListener('click', () => {
+                overlay.classList.add('hidden');
+            });
+        }
+
+        async function sinkronisasiSistemLatarBelakang() {
+            try {
+                if (API_URL.includes("XXXXX")) {
+                    throw new Error("API URL masih menggunakan nilai default XXXXX.");
+                }
+
+                const respon = await fetch(API_URL);
+                const payload = await respon.json();
+
+                bankSoal = payload.questions || [];
+                
+                if (payload.tokenUjian) {
+                    TOKEN_UJIAN_DINAMIS = payload.tokenUjian.trim().toUpperCase();
+                }
+
+                hasilUjianDiterima = payload.hasilUjian || [];
+                isDemoMode = false;
+
+                document.getElementById('demo-banner').classList.add('hidden');
+
+                inputTokenField.placeholder = "MASUKKAN KODE TOKEN";
+                inputTokenField.disabled = false;
+                btnSubmitLogin.innerText = "Masuk Aplikasi";
+                btnSubmitLogin.disabled = false;
+
+                perbaruiTampilanStatistikAdmin();
+            } catch (error) {
+                console.warn("Gagal sinkronisasi data dari spreadsheet. Mode fallback diaktifkan. Error:", error);
+                
+                bankSoal = DEMO_QUESTIONS;
+                hasilUjianDiterima = DEMO_RESULTS;
+                TOKEN_UJIAN_DINAMIS = "DESA2026";
+                isDemoMode = true;
+
+                const banner = document.getElementById('demo-banner');
+                banner.classList.remove('hidden');
+                banner.innerHTML = `<i class="fa-solid fa-circle-nodes"></i> <strong>Mode Demo Offline Aktif</strong> | Token Admin: <code>ADMIN123</code> | Token Siswa: <code>${TOKEN_UJIAN_DINAMIS}</code>`;
+
+                inputTokenField.placeholder = "MASUKKAN KODE TOKEN";
+                inputTokenField.disabled = false;
+                btnSubmitLogin.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Masuk (Mode Demo)`;
+                btnSubmitLogin.disabled = false;
+
+                perbaruiTampilanStatistikAdmin();
+            }
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const tokenMasuk = inputTokenField.value.trim().toUpperCase();
+            const inputNik = document.getElementById('nik').value.trim();
+            const inputNama = document.getElementById('nama').value.trim();
+
+            // Proteksi 1: Cek apakah NIK diblokir oleh Admin
+            if (daftarNikhBlocked[inputNik]) {
+                showCustomDialog("Akses Ditangguhkan", `NIK / ID User (${inputNik}) Anda sedang diblokir oleh Admin. Hubungi pengawas ujian untuk informasi lebih lanjut.`, false);
+                return;
+            }
+            
+            dataSiswa = {
+                nama: inputNama,
+                nik: inputNik,
+                role: ""
+            };
+
+            // A. Logika masuk sebagai ADMIN (Menggunakan Master Token ADMIN123)
+            if (tokenMasuk === MASTER_ADMIN_TOKEN) {
+                dataSiswa.role = "Admin";
+                document.getElementById('admin-display-name').innerText = dataSiswa.nama;
+                document.getElementById('welcome-title').innerText = `Hai ${dataSiswa.nama}`;
+                
+                halamanLogin.classList.add('hidden');
+                halamanAdmin.classList.remove('hidden');
+                document.getElementById('demo-banner').classList.add('hidden');
+                perbaruiTampilanStatistikAdmin();
+                renderTableSoal();
+                renderTableNilai();
+                renderTableUser();
+
+            // B. Logika masuk sebagai PESERTA -> Masuk Ke Ruang Tunggu
+            } else if (tokenMasuk === TOKEN_UJIAN_DINAMIS) {
+                dataSiswa.role = "Peserta";
+                
+                // Track status as in waiting room
+                activeSessions[dataSiswa.nik] = "Masih di Ruang Tunggu";
+
+                // Set data profil ruang tunggu
+                document.getElementById('wait-nama').innerText = dataSiswa.nama;
+                document.getElementById('wait-nik').innerText = dataSiswa.nik;
+
+                // Transisi ke ruang tunggu
+                halamanLogin.classList.add('hidden');
+                halamanTunggu.classList.remove('hidden');
+                document.getElementById('demo-banner').classList.add('hidden');
+
+                mulaiHitungMundurRuangTunggu();
+            } else {
+                showCustomDialog("Akses Ditolak", `Token Salah!\n\nUntuk menguji di preview:\n- Masuk sebagai Admin gunakan Token: ADMIN123\n- Masuk sebagai Siswa gunakan Token: ${TOKEN_UJIAN_DINAMIS}`, false);
+            }
+        });
+
+        function mulaiHitungMundurRuangTunggu() {
+            sisaWaktuTunggu = 10; // Mengatur ulang hitung mundur tunggu
+            btnMulaiUjianSekarang.disabled = true;
+            btnMulaiUjianSekarang.classList.remove('ready');
+            btnMulaiUjianSekarang.innerText = `MOHON TUNGGU (${sisaWaktuTunggu})`;
+            txtTimerTunggu.innerText = "Ujian Anda sedang dipersiapkan oleh sistem. Harap baca aturan di bawah.";
+
+            waitingTimerInterval = setInterval(() => {
+                sisaWaktuTunggu--;
+                if (sisaWaktuTunggu > 0) {
+                    btnMulaiUjianSekarang.innerText = `MOHON TUNGGU (${sisaWaktuTunggu})`;
+                } else {
+                    clearInterval(waitingTimerInterval);
+                    txtTimerTunggu.innerText = "Waktu verifikasi selesai! Anda dipersilakan masuk ke ruang ujian.";
+                    btnMulaiUjianSekarang.innerText = "MASUK RUANG UJIAN";
+                    btnMulaiUjianSekarang.disabled = false;
+                    btnMulaiUjianSekarang.classList.add('ready');
+                }
+            }, 1000);
+        }
+
+        // Aksi ketika tombol mulai diklik di Ruang Tunggu (Minta Konfirmasi)
+        btnMulaiUjianSekarang.onclick = () => {
+            showCustomDialog("Konfirmasi Mulai Ujian", "Apakah Anda yakin ingin masuk ke ruang ujian dan memulai hitung mundur waktu pengerjaan sekarang?", true, () => {
+                halamanTunggu.classList.add('hidden');
+                halamanUjian.classList.remove('hidden');
+                
+                // Track status as active test taker
+                activeSessions[dataSiswa.nik] = "Peserta Aktif / Sedang Ujian";
+                
+                document.getElementById('exam-user-name').innerText = dataSiswa.nama;
+
+                buatGridNomorSamping();
+                tampilkanSoalAktif(0);
+                mulaiHitungMundur();
+                aktifkanSistemAntiCurang();
+            });
+        };
+
+        function perbaruiTampilanStatistikAdmin() {
+            document.getElementById('stat-group-soal').innerText = bankSoal.length;
+            document.getElementById('stat-siswa').innerText = hasilUjianDiterima.length;
+            document.getElementById('label-token-aktif').innerText = TOKEN_UJIAN_DINAMIS;
+        }
+
+        const views = {
+            'menu-dashboard': 'view-dashboard',
+            'menu-konfigurasi': 'view-konfigurasi',
+            'menu-soal': 'view-soal',
+            'menu-nilai': 'view-nilai',
+            'menu-user': 'view-user'
+        };
+
+        Object.keys(views).forEach(menuId => {
+            document.getElementById(menuId).addEventListener('click', function() {
+                Object.keys(views).forEach(id => document.getElementById(id).classList.remove('active'));
+                this.classList.add('active');
+                
+                Object.values(views).forEach(viewId => document.getElementById(viewId).classList.add('hidden'));
+                document.getElementById(views[menuId]).classList.remove('hidden');
+
+                if (menuId === 'menu-soal') renderTableSoal();
+                if (menuId === 'menu-nilai') renderTableNilai();
+                if (menuId === 'menu-user') renderTableUser();
+            });
+        });
+
+        function switchConfigTab(targetTabId) {
+            const tabs = ['tab-dasar', 'tab-berita', 'tab-kartu'];
+            tabs.forEach(tab => {
+                const btn = document.querySelector(`button[onclick="switchConfigTab('${tab}')"]`);
+                const section = document.getElementById(`sub-${tab}`);
+                if (tab === targetTabId) {
+                    btn.classList.add('active');
+                    section.classList.remove('hidden');
+                } else {
+                    btn.classList.remove('active');
+                    section.classList.add('hidden');
+                }
+            });
+        }
+
+        document.getElementById('form-update-token').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const tokenBaru = document.getElementById('new-token-input').value.trim().toUpperCase();
+            const durasiBaru = parseInt(document.getElementById('new-duration-input').value);
+            const btnSimpan = document.getElementById('btn-save-token');
+            
+            btnSimpan.disabled = true;
+            btnSimpan.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan data...`;
+
+            TOTAL_DURASI_MENIT = durasiBaru;
+            sisaWaktuDetik = TOTAL_DURASI_MENIT * 60;
+            localStorage.setItem('total_durasi_menit', TOTAL_DURASI_MENIT);
+
+            if (tokenBaru) {
+                TOKEN_UJIAN_DINAMIS = tokenBaru;
+            }
+
+            if (isDemoMode) {
+                setTimeout(() => {
+                    document.getElementById('label-token-aktif').innerText = TOKEN_UJIAN_DINAMIS;
+                    showCustomDialog("Konfigurasi Tersimpan", `[Mode Demo Sukses]\n- Token ujian: "${TOKEN_UJIAN_DINAMIS}"\n- Durasi ujian: ${TOTAL_DURASI_MENIT} Menit\nTelah tersimpan ke memori simulator.`, false);
+                    document.getElementById('new-token-input').value = "";
+                    btnSimpan.disabled = false;
+                    btnSimpan.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Simpan & Perbarui Database`;
+                    perbaruiTampilanStatistikAdmin();
+                }, 800);
+                return;
+            }
+
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'update_token',
+                        tokenBaru: TOKEN_UJIAN_DINAMIS,
+                        durasi: TOTAL_DURASI_MENIT
+                    })
+                });
+
+                document.getElementById('label-token-aktif').innerText = TOKEN_UJIAN_DINAMIS;
+                showCustomDialog("Sukses Sinkronisasi", `Token Ujian & Durasi berhasil diubah di basis data pusat Google Spreadsheet.`, false);
+                document.getElementById('new-token-input').value = "";
+            } catch (error) {
+                showCustomDialog("Peringatan Offline", "Gagal memperbarui konfigurasi ke server online. Namun konfigurasi lokal saat ini telah disesuaikan.", false);
+                document.getElementById('label-token-aktif').innerText = TOKEN_UJIAN_DINAMIS;
+            } finally {
+                btnSimpan.disabled = false;
+                btnSimpan.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Simpan & Perbarui Database`;
+                perbaruiTampilanStatistikAdmin();
+            }
+        });
+
+        function renderTableSoal() {
+            const tbody = document.querySelector('#table-bank-soal tbody');
+            tbody.innerHTML = '';
+            if (bankSoal.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Tidak ada data soal terdeteksi</td></tr>';
+                return;
+            }
+            bankSoal.forEach(q => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${q.id}</td><td>${q.pertanyaan}</td><td style="font-weight:bold; color:var(--primary-blue);">${q.kunci}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('btn-ekspor-json').addEventListener('click', () => {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bankSoal, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "bank_soal_ujian_desa.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        });
+
+        document.getElementById('btn-ekspor-csv').addEventListener('click', () => {
+            let csvContent = "data:text/csv;charset=utf-8,ID,Pertanyaan,A,B,C,D,E,Kunci\n";
+            bankSoal.forEach(q => {
+                const escapedPertanyaan = `"${(q.pertanyaan || '').replace(/"/g, '""')}"`;
+                const escapedA = `"${(q.a || '').replace(/"/g, '""')}"`;
+                const escapedB = `"${(q.b || '').replace(/"/g, '""')}"`;
+                const escapedC = `"${(q.c || '').replace(/"/g, '""')}"`;
+                const escapedD = `"${(q.d || '').replace(/"/g, '""')}"`;
+                const escapedE = `"${(q.e || '').replace(/"/g, '""')}"`;
+                csvContent += `${q.id},${escapedPertanyaan},${escapedA},${escapedB},${escapedC},${escapedD},${escapedE},${q.kunci}\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", encodedUri);
+            downloadAnchor.setAttribute("download", "bank_soal_ujian_desa.csv");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        });
+
+        document.getElementById('btn-trigger-impor').addEventListener('click', () => {
+            document.getElementById('file-import-soal').click();
+        });
+
+        document.getElementById('file-import-soal').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const contents = evt.target.result;
+                    if (file.name.endsWith('.json')) {
+                        const importedData = JSON.parse(contents);
+                        if (Array.isArray(importedData)) {
+                            bankSoal = importedData;
+                            showCustomDialog("Sukses Impor", `Berhasil mengimpor ${bankSoal.length} soal ke program.`, false);
+                            renderTableSoal();
+                            perbaruiTampilanStatistikAdmin();
+                        } else {
+                            throw new Error("Format data JSON harus berupa array.");
+                        }
+                    } else if (file.name.endsWith('.csv')) {
+                        const lines = contents.split('\n');
+                        const newQuestions = [];
+                        for (let i = 1; i < lines.length; i++) {
+                            const line = lines[i].trim();
+                            if (!line) continue;
+                            
+                            // Simple CSV splitting (robust split for comma escaping can be enhanced)
+                            const columns = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                            if (columns.length >= 8) {
+                                newQuestions.push({
+                                    id: columns[0],
+                                    pertanyaan: columns[1].replace(/^"|"$/g, '').replace(/""/g, '"'),
+                                    a: columns[2].replace(/^"|"$/g, '').replace(/""/g, '"'),
+                                    b: columns[3].replace(/^"|"$/g, '').replace(/""/g, '"'),
+                                    c: columns[4].replace(/^"|"$/g, '').replace(/""/g, '"'),
+                                    d: columns[5].replace(/^"|"$/g, '').replace(/""/g, '"'),
+                                    e: columns[6].replace(/^"|"$/g, '').replace(/""/g, '"'),
+                                    kunci: columns[7].replace(/^"|"$/g, '').replace(/""/g, '"').trim().toUpperCase()
+                                });
+                            }
+                        }
+                        if (newQuestions.length > 0) {
+                            bankSoal = newQuestions;
+                            showCustomDialog("Sukses Impor", `Berhasil mengimpor ${bankSoal.length} soal dari berkas CSV.`, false);
+                            renderTableSoal();
+                            perbaruiTampilanStatistikAdmin();
+                        } else {
+                            throw new Error("Tidak menemukan baris soal yang valid.");
+                        }
+                    }
+                } catch (err) {
+                    showCustomDialog("Kesalahan Impor", `Gagal memproses berkas: ${err.message}`, false);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function renderTableNilai() {
+            const tbody = document.querySelector('#table-nilai-peserta tbody');
+            tbody.innerHTML = '';
+            if (hasilUjianDiterima.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Belum ada pengerjaan masuk.</td></tr>';
+                return;
+            }
+            const salinanHasil = [...hasilUjianDiterima].reverse();
+            salinanHasil.forEach(h => {
+                const tr = document.createElement('tr');
+                const tgl = h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : '-';
+                tr.innerHTML = `
+                    <td>${tgl}</td>
+                    <td><strong>${h.nama || '-'}</strong></td>
+                    <td>${h.nik || '-'}</td>
+                    <td style="font-weight:bold; color:var(--green-accent);">${h.skor || 0}</td>
+                    <td><span class="badge ${h.status.includes('Didiskualifikasi') ? 'badge-red' : 'badge-green'}">${h.status || 'Selesai'}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('btn-unduh-excel').addEventListener('click', () => {
+            let csvContent = "data:text/csv;charset=utf-8,Waktu Submit,Nama Lengkap,NIK,Skor,Status\n";
+            hasilUjianDiterima.forEach(h => {
+                const date = h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : '-';
+                csvContent += `"${date}","${h.nama}","${h.nik}",${h.skor},"${h.status}"\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", encodedUri);
+            downloadAnchor.setAttribute("download", "lembar_nilai_perangkat_desa.csv");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        });
+
+        document.getElementById('btn-unduh-pdf').addEventListener('click', () => {
+            // Memanfaatkan html2pdf.js untuk mengunduh Tab Nilai ke format PDF instan secara otomatis
+            const element = document.getElementById('view-nilai');
+            const opsi = {
+                margin:       10,
+                filename:     'lembar_nilai_perangkat_desa.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+            html2pdf().set(opsi).from(element).save();
+        });
+
+        function renderTableUser() {
+            const tbody = document.querySelector('#table-user-peserta tbody');
+            tbody.innerHTML = '';
+
+            DAFTAR_ROSTER_PESERTA.forEach(peserta => {
+                // Temukan status ujian yang sudah terkirim/selesai
+                const riwayatSubmit = hasilUjianDiterima.find(h => h.nik === peserta.nik);
+                const isBlocked = daftarNikhBlocked[peserta.nik] || false;
+                
+                let statusBadge = '';
+
+                if (isBlocked) {
+                    statusBadge = `<span class="badge badge-red"><i class="fa-solid fa-user-slash"></i> Akun Diblokir</span>`;
+                } else if (riwayatSubmit) {
+                    statusBadge = `<span class="badge badge-green"><i class="fa-solid fa-circle-check"></i> Selesai Ujian</span>`;
+                } else if (activeSessions[peserta.nik]) {
+                    const statusSesi = activeSessions[peserta.nik];
+                    if (statusSesi === "Peserta Aktif / Sedang Ujian") {
+                        statusBadge = `<span class="badge badge-red pulsing-dot" style="background:transparent; border-radius:0;"></span> <span class="badge badge-red">Peserta Aktif / Sedang Ujian</span>`;
+                    } else {
+                        statusBadge = `<span class="badge badge-orange"><i class="fa-solid fa-hourglass-start"></i> Masih di Ruang Tunggu</span>`;
+                    }
+                } else {
+                    statusBadge = `<span class="badge badge-gray"><i class="fa-solid fa-circle-xmark"></i> Belum Login</span>`;
+                }
+
+                // Membuat Tombol Aksi Kontrol Interaktif
+                const actionContainer = document.createElement('div');
+                actionContainer.className = "button-group";
+                actionContainer.style.justifyContent = "center";
+
+                // 1. Tombol Blokir / Buka Blokir
+                const btnBlock = document.createElement('button');
+                if (isBlocked) {
+                    btnBlock.className = "btn-action btn-action-green";
+                    btnBlock.innerHTML = `<i class="fa-solid fa-user-check"></i> Buka`;
+                    btnBlock.onclick = () => {
+                        showCustomDialog("Konfirmasi Buka Blokir", `Buka blokir akses ujian untuk ${peserta.nama}?`, true, () => {
+                            daftarNikhBlocked[peserta.nik] = false;
+                            renderTableUser();
+                        });
+                    };
+                } else {
+                    btnBlock.className = "btn-action btn-action-red";
+                    btnBlock.innerHTML = `<i class="fa-solid fa-ban"></i> Blokir`;
+                    btnBlock.onclick = () => {
+                        showCustomDialog("Konfirmasi Blokir", `Apakah Anda yakin ingin memblokir akses login ${peserta.nama}?`, true, () => {
+                            daftarNikhBlocked[peserta.nik] = true;
+                            // Jika sedang ujian, paksa hentikan
+                            delete activeSessions[peserta.nik];
+                            renderTableUser();
+                        });
+                    };
+                }
+
+                // 2. Tombol Reset / Ulangi Ujian
+                const btnReset = document.createElement('button');
+                btnReset.className = "btn-action btn-action-outline";
+                btnReset.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> Reset`;
+                // Nonaktifkan tombol reset jika peserta belum login sama sekali
+                if (!riwayatSubmit && !activeSessions[peserta.nik]) {
+                    btnReset.disabled = true;
+                    btnReset.style.opacity = "0.5";
+                    btnReset.style.cursor = "not-allowed";
+                } else {
+                    btnReset.onclick = () => {
+                        showCustomDialog("Konfirmasi Reset Ujian", `Apakah Anda yakin ingin mereset ujian ${peserta.nama}? Riwayat skor sebelumnya dan status pengerjaan saat ini akan dihapus sepenuhnya.`, true, () => {
+                            // Hapus dari riwayat pengerjaan masuk
+                            hasilUjianDiterima = hasilUjianDiterima.filter(h => h.nik !== peserta.nik);
+                            // Hapus sesi login aktif
+                            delete activeSessions[peserta.nik];
+                            // Reset state lokal pengerjaan jika peserta itu sendiri yang sedang aktif di browser saat ini
+                            if (dataSiswa.nik === peserta.nik) {
+                                jawabanUser = {};
+                                indeksSekarang = 0;
+                                jumlahPelanggaran = 0;
+                            }
+                            renderTableUser();
+                            renderTableNilai();
+                            perbaruiTampilanStatistikAdmin();
+                        });
+                    };
+                }
+
+                actionContainer.appendChild(btnBlock);
+                actionContainer.appendChild(btnReset);
+
+                const tr = document.createElement('tr');
+                
+                const tdNik = document.createElement('td');
+                tdNik.innerHTML = `<code>${peserta.nik}</code>`;
+                
+                const tdNama = document.createElement('td');
+                tdNama.innerHTML = `<strong>${peserta.nama}</strong>`;
+                
+                const tdRole = document.createElement('td');
+                tdRole.innerHTML = `<span class="badge badge-blue">Peserta</span>`;
+
+                const tdStatus = document.createElement('td');
+                tdStatus.innerHTML = statusBadge;
+
+                const tdAction = document.createElement('td');
+                tdAction.style.textAlign = "center";
+                tdAction.appendChild(actionContainer);
+
+                tr.appendChild(tdNik);
+                tr.appendChild(tdNama);
+                tr.appendChild(tdRole);
+                tr.appendChild(tdStatus);
+                tr.appendChild(tdAction);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        function generateAndPrintBA(event) {
+            event.preventDefault();
+            
+            const kades = document.getElementById('ba-kades').value;
+            const pengawas = document.getElementById('ba-pengawas').value;
+            const tgl = document.getElementById('ba-tanggal').value;
+            const waktu = document.getElementById('ba-waktu').value;
+            const tempat = document.getElementById('ba-lokasi').value;
+            const catatan = document.getElementById('ba-catatan').value;
+            const desa = document.getElementById('ba-desa').value;
+            const kec = document.getElementById('ba-kecamatan').value;
+            const kab = document.getElementById('ba-kabupaten').value;
+
+            // Formatter tanggal Bahasa Indonesia
+            const opsiTgl = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const formattedDate = tgl ? new Date(tgl).toLocaleDateString('id-ID', opsiTgl) : '-';
+            const shortFormattedDate = tgl ? new Date(tgl).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
+
+            // Inject value ke element cetak Berita Acara
+            document.querySelectorAll('.print-ba-desa').forEach(el => el.innerText = desa);
+            document.querySelectorAll('.print-ba-kec').forEach(el => el.innerText = kec);
+            
+            document.getElementById('print-ba-tgl-indo').innerText = formattedDate;
+            document.getElementById('print-ba-lok').innerText = tempat;
+            document.getElementById('print-ba-tgl-full').innerText = formattedDate;
+            document.getElementById('print-ba-wkt').innerText = waktu;
+            document.getElementById('print-ba-tempat').innerText = tempat;
+            document.getElementById('print-ba-peng').innerText = pengawas;
+            document.getElementById('print-ba-cat').innerText = catatan;
+            
+            document.getElementById('print-ba-nama-kades').innerText = kades;
+            document.getElementById('print-ba-nama-peng').innerText = pengawas;
+            document.getElementById('print-ba-tgl-sekarang').innerText = shortFormattedDate;
+
+            // Ekspor PDF Instan dan Otomatis tanpa Dialog Cetak Browser
+            const element = document.getElementById('print-ba-container');
+            const opsi = {
+                margin:       12,
+                filename:     `Berita_Acara_Ujian_${desa.replace(/\s+/g, '_')}.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opsi).from(element).save();
+        }
+
+        function renderTableCetakRosterKartu() {
+            const tbody = document.getElementById('table-kartu-roster');
+            tbody.innerHTML = '';
+            
+            DAFTAR_ROSTER_PESERTA.forEach(peserta => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><code>${peserta.nik}</code></td>
+                    <td><strong>${peserta.nama}</strong></td>
+                    <td><span class="badge badge-blue">Kandidat Peserta</span></td>
+                    <td style="text-align:center;">
+                        <button class="btn-action btn-action-outline" onclick="printSingleKartu('${peserta.nik}')">
+                            <i class="fa-solid fa-file-pdf"></i> Unduh PDF
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function buildKartuUjianHTML(peserta) {
+            return `
+                <div class="exam-card-print">
+                    <div class="kartu-header">
+                        <h4>Kartu Tanda Peserta Ujian</h4>
+                        <p>Seleksi Perangkat Desa Karang Baru Tahun 2026</p>
+                    </div>
+                    <div class="kartu-body">
+                        <div class="kartu-foto">Pas Foto<br>3 x 4</div>
+                        <div class="kartu-details">
+                            <table>
+                                <tr><td>Nama</td><td>:</td><td>${peserta.nama}</td></tr>
+                                <tr><td>ID / NIK</td><td>:</td><td><code>${peserta.nik}</code></td></tr>
+                                <tr><td>Sesi Ujian</td><td>:</td><td>Ujian Utama</td></tr>
+                                <tr><td>Ruang / Lab</td><td>:</td><td>Balai Desa (CBT)</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="kartu-footer">
+                        <div class="barcode-placeholder">${peserta.nik.substring(0,6)}-2026</div>
+                        <div style="text-align: center; font-size: 10px;">
+                            <p>Panitia Seleksi,</p>
+                            <div style="height: 25px;"></div>
+                            <strong>Ketua Pelaksana</strong>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function printSingleKartu(nik) {
+            const peserta = DAFTAR_ROSTER_PESERTA.find(p => p.nik === nik);
+            if (!peserta) return;
+
+            const printWrapper = document.getElementById('kartu-print-wrapper');
+            printWrapper.innerHTML = buildKartuUjianHTML(peserta);
+
+            // Unduh file PDF Instan untuk Peserta Tunggal
+            const element = document.getElementById('print-kartu-container');
+            const opsi = {
+                margin:       10,
+                filename:     `Kartu_Ujian_${peserta.nama.replace(/\s+/g, '_')}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opsi).from(element).save();
+        }
+
+        function printAllKartu() {
+            const printWrapper = document.getElementById('kartu-print-wrapper');
+            printWrapper.innerHTML = '';
+
+            DAFTAR_ROSTER_PESERTA.forEach(peserta => {
+                printWrapper.innerHTML += buildKartuUjianHTML(peserta);
+            });
+
+            // Unduh file PDF Massal berisi seluruh kartu peserta terdaftar
+            const element = document.getElementById('print-kartu-container');
+            const opsi = {
+                margin:       10,
+                filename:     'Semua_Kartu_Peserta_Ujian.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opsi).from(element).save();
+        }
+
+        function buatGridNomorSamping() {
+            const gridContainer = document.getElementById('number-grid');
+            gridContainer.innerHTML = '';
+
+            bankSoal.forEach((soal, indeks) => {
+                const box = document.createElement('div');
+                box.className = `num-box ${indeks === indeksSekarang ? 'active' : ''}`;
+                box.id = `grid-num-${indeks}`;
+                
+                const kodeJawaban = document.createElement('span');
+                kodeJawaban.className = 'indicator-letter';
+                kodeJawaban.id = `letter-indicator-${indeks}`;
+                kodeJawaban.innerText = jawabanUser[indeks] ? jawabanUser[indeks] : '-';
+                
+                const statusBulat = document.createElement('span');
+                statusBulat.className = 'circle-status';
+
+                box.appendChild(kodeJawaban);
+                box.appendChild(statusBulat);
+                
+                const textAngka = document.createTextNode(`\n${indeks + 1}`);
+                box.appendChild(textAngka);
+
+                box.onclick = () => tampilkanSoalAktif(indeks);
+                gridContainer.appendChild(box);
+            });
+        }
+
+        function tampilkanSoalAktif(indeks) {
+            if (indeks < 0 || indeks >= bankSoal.length) return;
+
+            document.getElementById(`grid-num-${indeksSekarang}`).classList.remove('active');
+            indeksSekarang = indeks;
+            document.getElementById(`grid-num-${indeksSekarang}`).classList.add('active');
+
+            const soal = bankSoal[indeks];
+            document.getElementById('current-num-display').innerText = indeks + 1;
+            document.getElementById('question-text').innerText = `${indeks + 1}. ${soal.pertanyaan}`;
+
+            const wadahOpsi = document.getElementById('options-container');
+            wadahOpsi.innerHTML = '';
+
+            ['a', 'b', 'c', 'd', 'e'].forEach(pilihan => {
+                if(soal[pilihan]) {
+                    const btnOpsi = document.createElement('div');
+                    btnOpsi.className = `option-btn ${jawabanUser[indeks] === pilihan.toUpperCase() ? 'selected' : ''}`;
+                    
+                    const abjadBulat = document.createElement('span');
+                    abjadBulat.className = 'option-letter';
+                    abjadBulat.innerText = pilihan.toUpperCase();
+
+                    const teksOpsi = document.createElement('span');
+                    teksOpsi.className = 'option-text';
+                    teksOpsi.innerText = soal[pilihan];
+
+                    btnOpsi.appendChild(abjadBulat);
+                    btnOpsi.appendChild(teksOpsi);
+
+                    btnOpsi.onclick = () => simpanJawabanDipilih(pilihan.toUpperCase());
+                    wadahOpsi.appendChild(btnOpsi);
+                }
+            });
+        }
+
+        function simpanJawabanDipilih(hurufKapital) {
+            jawabanUser[indeksSekarang] = hurufKapital;
+            document.getElementById(`letter-indicator-${indeksSekarang}`).innerText = hurufKapital;
+            document.getElementById(`grid-num-${indeksSekarang}`).classList.add('answered');
+            tampilkanSoalAktif(indeksSekarang);
+        }
+
+        document.getElementById('btn-prev-top').onclick = () => tampilkanSoalAktif(indeksSekarang - 1);
+        document.getElementById('btn-next-top').onclick = () => tampilkanSoalAktif(indeksSekarang + 1);
+
+        function mulaiHitungMundur() {
+            intervalTimer = setInterval(() => {
+                sisaWaktuDetik--;
+                
+                let jam = Math.floor(sisaWaktuDetik / 3600);
+                let sisaMenit = sisaWaktuDetik % 3600;
+                let menit = Math.floor(sisaMenit / 60);
+                let detik = sisaWaktuDetik % 60;
+
+                document.getElementById('t-jam').innerText = jam.toString().padStart(2, '0');
+                document.getElementById('t-mnt').innerText = menit.toString().padStart(2, '0');
+                document.getElementById('t-dtk').innerText = detik.toString().padStart(2, '0');
+
+                if(sisaWaktuDetik <= 0) {
+                    clearInterval(intervalTimer);
+                    showCustomDialog("Waktu Habis", "Waktu pengerjaan habis! Berkas jawaban akan dikirim otomatis ke sistem.", false, () => {
+                        kalkulasiDanKirimHasil("Waktu Habis");
+                    });
+                }
+            }, 1000);
+        }
+
+        function aktifkanSistemAntiCurang() {
+            window.addEventListener('blur', () => {
+                jumlahPelanggaran++;
+                showCustomDialog("Peringatan Pelanggaran", `Dilarang meninggalkan halaman ujian atau membuka aplikasi lain selama ujian berlangsung!\nJumlah Pelanggaran: [${jumlahPelanggaran}/3]`, false, () => {
+                    if (jumlahPelanggaran >= 3) {
+                        showCustomDialog("Diskualifikasi Otomatis", "Batas pelanggaran terlampaui. Anda didiskualifikasi secara otomatis dari ujian ini.", false, () => {
+                            kalkulasiDanKirimHasil("Didiskualifikasi (Pelanggaran Tab)");
+                        });
+                    }
+                });
+            });
+        }
+
+        async function kalkulasiDanKirimHasil(statusAkhir = "Selesai") {
+            clearInterval(intervalTimer);
+            halamanUjian.classList.add('hidden');
+            halamanHasil.classList.remove('hidden');
+
+            // Set session back to inactive/finished
+            delete activeSessions[dataSiswa.nik];
+
+            let totalBenar = 0;
+            bankSoal.forEach((soal, indeks) => {
+                if(jawabanUser[indeks] && jawabanUser[indeks] === soal.kunci.trim().toUpperCase()) {
+                    totalBenar++;
+                }
+            });
+
+            const nilaiSkor = Math.round((totalBenar / bankSoal.length) * 100) || 0;
+            document.getElementById('final-score').innerText = nilaiSkor;
+
+            if (statusAkhir.includes("Didiskualifikasi")) {
+                document.getElementById('cheat-status').innerText = `STATUS: ${statusAkhir}`;
+                document.getElementById('final-score').style.color = "var(--red-accent)";
+            }
+
+            const paketData = {
+                nama: dataSiswa.nama,
+                nik: dataSiswa.nik,
+                role: dataSiswa.role,
+                skor: nilaiSkor,
+                status: statusAkhir,
+                timestamp: new Date().toISOString()
+            };
+
+            hasilUjianDiterima.push(paketData);
+
+            if (isDemoMode) {
+                console.log("Menjalankan mode demo, data simulasi tersimpan secara lokal.", paketData);
+                return;
+            }
+
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(paketData)
+                });
+            } catch (e) {
+                console.error("Kesalahan pengiriman database:", e);
+            }
+        }
+
+        document.getElementById('btn-submit-exam').onclick = () => {
+            showCustomDialog("Selesaikan Ujian", "Apakah Anda yakin telah menjawab seluruh soal dengan benar dan ingin mengakhiri sesi ujian?", true, () => {
+                kalkulasiDanKirimHasil("Selesai Mandiri");
+            });
+        };
+
+        // DOM Element Navigasi Utama Halaman
+        const halamanLogin = document.getElementById('login-page');
+        const halamanAdmin = document.getElementById('admin-page');
+        const halamanUjian = document.getElementById('exam-page');
+        const halamanHasil = document.getElementById('result-page');
+
+        document.getElementById('btn-logout-admin').onclick = () => window.location.reload();
+        document.getElementById('btn-restart').onclick = () => window.location.reload();
+    </script>
+</body>
+</html>
