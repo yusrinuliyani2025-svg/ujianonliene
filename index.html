@@ -3,47 +3,778 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplikasi Ujian Online Perangkat Desa</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Afacad+Flux:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
+    <title>CBT Perangkat Desa - Sistem Ujian Online</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --dark-blue: #2c3b4e;
-            --primary-blue: #3c8dbc;
-            --text-dark: #333333;
-            --border-color: #d2d6de;
-            --red-accent: #dd4b39;
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-700: #374151;
+            --text-main: #1f2937;
         }
-        body { font-family: 'Afacad Flux', sans-serif; background: #f4f6f9; }
-        .login-container { max-width: 450px; margin: 100px auto; padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f0f2f5; color: var(--text-main); }
         .hidden { display: none !important; }
+
+        /* --- LOGIN PAGE --- */
+        .login-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .login-card { background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); width: 100%; max-width: 420px; }
+        .login-card h2 { text-align: center; margin-bottom: 1.5rem; color: var(--gray-700); }
+        .form-group { margin-bottom: 1.25rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; }
+        .form-group input, .form-group select { width: 100%; padding: 0.75rem; border: 1px solid var(--gray-200); border-radius: 6px; outline: none; transition: 0.2s; }
+        .form-group input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); }
+        .btn { width: 100%; padding: 0.75rem; border: none; border-radius: 6px; background-color: var(--primary); color: white; font-weight: bold; cursor: pointer; transition: 0.2s; display: inline-block; text-align: center; }
+        .btn:hover { background-color: var(--primary-dark); }
+        .btn-sm { padding: 5px 10px; font-size: 0.85rem; border-radius: 4px; width: auto; font-weight: normal; margin-right: 5px;}
+
+        /* --- APPS LAYOUT (HEADER & MAIN) --- */
+        header { background-color: var(--primary); color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .main-wrapper { display: flex; min-height: calc(100vh - 65px); }
+
+        /* --- SIDEBAR (ADMIN) --- */
+        .sidebar { width: 260px; background-color: #1e293b; color: #94a3b8; padding: 1.5rem 1rem; flex-shrink: 0; }
+        .sidebar-brand { color: white; font-size: 1.2rem; font-weight: bold; margin-bottom: 2rem; display: flex; align-items: center; gap: 10px; }
+        .sidebar-menu { list-style: none; }
+        .sidebar-menu li { padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 12px; }
+        .sidebar-menu li:hover, .sidebar-menu li.active { background-color: #334155; color: white; }
+
+        /* --- CONTENT AREA --- */
+        .content-body { flex: 1; padding: 2rem; background-color: #f8fafc; overflow-x: auto; }
+        
+        /* --- TABLE CONFIG --- */
+        .table-responsive { width: 100%; overflow-x: auto; margin-top: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid var(--gray-200); }
+        th { background-color: #f1f5f9; color: #475569; font-weight: 600; }
+        
+        /* MODAL STYLE */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; padding: 2rem; border-radius: 8px; width: 100%; max-width: 450px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+
+        /* --- EXAM CONTAINER --- */
+        .exam-container { max-width: 1200px; margin: 2rem auto; display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; padding: 0 1rem; }
+        .question-box { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .question-header { display: flex; justify-content: space-between; padding-bottom: 1rem; border-bottom: 1px solid var(--gray-200); margin-bottom: 1.5rem; }
+        .question-number { background: var(--primary); color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-weight: bold; }
+        .options-list { margin-top: 1.5rem; }
+        .option-item { display: flex; align-items: center; gap: 10px; padding: 0.75rem; border: 1px solid var(--gray-200); border-radius: 6px; margin-bottom: 0.75rem; cursor: pointer; transition: 0.2s; }
+        .option-item:hover { background-color: var(--gray-100); }
+        .option-item.selected { background-color: #e0e7ff; border-color: var(--primary); }
+        .exam-footer { display: flex; justify-content: space-between; margin-top: 2rem; }
+
+        .nav-panel { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: fit-content; }
+        .nav-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 1rem; }
+        .nav-num { aspect-ratio: 1; display: flex; justify-content: center; align-items: center; border: 1px solid var(--gray-200); border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+        .nav-num.answered { background-color: var(--success); color: white; border-color: var(--success); }
+        .nav-num.unanswered { background-color: var(--gray-200); color: var(--text-main); }
+        .nav-num.doubtful { background-color: var(--warning); color: white; border-color: var(--warning); }
+        .nav-num.active-now { border: 2px dashed var(--primary); }
+        
+        @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+        @media (max-width: 768px) { .exam-container { grid-template-columns: 1fr; } .main-wrapper { flex-direction: column; } .sidebar { width: 100%; } }
     </style>
 </head>
 <body>
 
-    <div id="login-page" class="login-container">
-        <h2 class="text-2xl font-bold mb-6 text-center">Login Ujian</h2>
-        <form id="login-form">
-            <input type="text" id="nama" placeholder="Masukkan Nama Lengkap" class="w-full p-2 border mb-3 rounded" required>
-            <input type="text" id="nik" placeholder="Masukkan NIK atau ID" class="w-full p-2 border mb-3 rounded" required>
-            <input type="text" id="token-input" placeholder="Masukkan Kode Token" class="w-full p-2 border mb-6 rounded" required>
-            <button id="btn-submit-login" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">Masuk</button>
-        </form>
+    <!-- ==================== HALAMAN LOGIN ==================== -->
+    <div id="loginPage" class="login-container">
+        <div class="login-card">
+            <h2><i class="fa-solid fa-graduation-cap text-primary"></i> CBT PERANGKAT DESA</h2>
+            <div class="form-group">
+                <label>Pilih Hak Akses</label>
+                <select id="loginRole" onchange="toggleLoginField()">
+                    <option value="user">Peserta (Warga/Calon)</option>
+                    <option value="admin">Administrator (Operator)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label id="labelUsername">Username / NIK</label>
+                <input type="text" id="usernameInput" placeholder="Masukan NIK atau Username" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" placeholder="••••••••" required>
+            </div>
+            <button class="btn" onclick="handleLogin()">Masuk <i class="fa-solid fa-sign-in"></i></button>
+        </div>
     </div>
 
-    <script>
-        // --- KONFIGURASI ---
-        const API_URL = "https://script.google.com/macros/s/AKfycbx3pWfwOKCoSX4460qy4Q5voozYXTiboM44LmkI_efdO-c2HjnTMAtmPjeAngwceyiokg/exec"; 
-        
-        console.log("Aplikasi dimuat. Silakan sambungkan API_URL Anda.");
+    <!-- ==================== LOBBY PESERTA ==================== -->
+    <div id="waitingRoom" class="hidden" style="max-width: 600px; margin: 5rem auto; padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <i class="fa-solid fa-hourglass-half" style="font-size: 3.5rem; color: var(--warning); animation: pulse 2s infinite; display: inline-block;"></i>
+            <h2 style="margin-top: 1rem; color: var(--gray-700);">Ruang Tunggu Peserta</h2>
+        </div>
+        <div style="background: var(--gray-100); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid var(--gray-200);"><td style="font-weight: bold; padding: 8px 0;">Nama Peserta</td><td id="lobbyNama">-</td></tr>
+                <tr><td style="font-weight: bold; padding: 8px 0;">NIK / Username</td><td id="lobbyUsername">-</td></tr>
+            </table>
+        </div>
+        <div class="form-group">
+            <label style="font-weight: bold;">Masukkan Token Ujian Resmi</label>
+            <input type="text" id="inputLobbyToken" placeholder="Ketik Token" style="text-transform: uppercase; text-align: center; font-size: 1.2rem; font-weight: bold;">
+        </div>
+        <button class="btn" style="background-color: var(--success);" onclick="verifyTokenAndStart()">Mulai Ujian <i class="fa-solid fa-play"></i></button>
+    </div>
 
-        document.getElementById('login-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            alert("Sistem berhasil dimuat. Pastikan URL API sudah terkonfigurasi di dalam file.");
-        });
+    <!-- ==================== WORKSPACE UJIAN PESERTA ==================== -->
+    <div id="userInterface" class="hidden">
+        <header>
+            <h3><i class="fa-solid fa-file-signature"></i> Ruang Ujian Online</h3>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <span id="userNameDisplay">Peserta</span>
+                <div id="examTimer" style="background: rgba(0,0,0,0.2); padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold;">00:00:00</div>
+            </div>
+        </header>
+        <main class="exam-container">
+            <section class="question-box">
+                <div class="question-header">
+                    <span class="question-number" id="displayNoSoal">-</span>
+                    <span id="displayTipeSoal" style="font-weight:600; color:var(--primary)">Pilihan Ganda</span>
+                </div>
+                <p id="questionText" style="font-size: 1.1rem; margin-bottom: 1.5rem;">Memuat...</p>
+                <div id="answerArea" class="options-list"></div>
+                <div class="exam-footer">
+                    <button class="btn" style="width:auto; background:#6b7280" onclick="prevQuestion()">Sebelumnya</button>
+                    <button class="btn" style="width:auto; background:var(--warning)" onclick="markDoubtful()"><input type="checkbox" id="chkRagu"> Ragu</button>
+                    <button class="btn" style="width:auto; background:var(--primary)" id="btnNext" onclick="nextQuestion()">Selanjutnya</button>
+                    <button class="btn hidden" style="width:auto; background:var(--success)" id="btnFinish" onclick="triggerSubmitConfirmation()">Selesai</button>
+                </div>
+            </section>
+            <aside class="nav-panel">
+                <h4>Navigasi</h4>
+                <div class="nav-grid" id="navGridBox"></div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- ==================== INTERFACE OPERATOR (ADMIN) ==================== -->
+    <div id="adminInterface" class="hidden">
+        <header>
+            <h3><i class="fa-solid fa-toolbox"></i> Panel Administrasi CBT</h3>
+            <button class="btn" style="width:auto; background-color: var(--danger);" onclick="logout()"><i class="fa-solid fa-power-off"></i> Keluar</button>
+        </header>
+        <div class="main-wrapper">
+            <nav class="sidebar">
+                <div class="sidebar-brand"><i class="fa-solid fa-server"></i> Server Utama</div>
+                <ul class="sidebar-menu">
+                    <li id="menu-dash" class="active" onclick="switchAdminTab('dash')"><i class="fa-solid fa-chart-pie"></i> Dashboard</li>
+                    <li id="menu-peserta" onclick="switchAdminTab('peserta')"><i class="fa-solid fa-users"></i> Manajemen Peserta</li>
+                    <li id="menu-soal" onclick="switchAdminTab('soal')"><i class="fa-solid fa-file-lines"></i> Manajemen Soal</li>
+                    <li id="menu-set" onclick="switchAdminTab('set')"><i class="fa-solid fa-gear"></i> Pengaturan & Token</li>
+                </ul>
+            </nav>
+             
+            <section class="content-body">
+                <!-- TAB DASHBOARD -->
+                <div id="tab-dash" class="admin-section">
+                    <h2>Dashboard Server Utama</h2><br>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;">
+                        <div style="background: white; padding: 20px; border-radius: 8px; border-left: 5px solid var(--primary);">
+                            <div>TOTAL PESERTA</div><div id="statTotalPeserta" style="font-size:24px; font-weight:bold;">0</div>
+                        </div>
+                        <div style="background: white; padding: 20px; border-radius: 8px; border-left: 5px solid var(--success);">
+                            <div>PESERTA AKTIF</div><div id="statPesertaLogin" style="font-size:24px; font-weight:bold;">0</div>
+                        </div>
+                        <div style="background: white; padding: 20px; border-radius: 8px; border-left: 5px solid var(--warning);">
+                            <div>SELESAI UJIAN</div><div id="statPesertaSelesai" style="font-size:24px; font-weight:bold;">0</div>
+                        </div>
+                        <div style="background: white; padding: 20px; border-radius: 8px; border-left: 5px solid #334155;">
+                            <div>TOTAL BANK SOAL</div><div id="statTotalSoal" style="font-size:24px; font-weight:bold;">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB MANAJEMEN PESERTA (BARU) -->
+                <div id="tab-peserta" class="admin-section hidden">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+                        <div>
+                            <h2><i class="fa-solid fa-users"></i> Manajemen Daftar Peserta</h2>
+                            <p style="font-size:0.9rem; color:#64748b;">Sinkronisasi data langsung dengan Lembar Tab 'Peserta' Google Sheet</p>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn" style="width:auto; background: var(--primary);" onclick="openAddPesertaModal()"><i class="fa-solid fa-user-plus"></i> Tambah Peserta</button>
+                            <button class="btn" style="width:auto; background: #0284c7;" onclick="downloadTemplatePeserta()"><i class="fa-solid fa-download"></i> Template</button>
+                            <button class="btn" style="width:auto; background: var(--success);" onclick="document.getElementById('filePesertaCsv').click()"><i class="fa-solid fa-file-excel"></i> Unggah Massal</button>
+                            <input type="file" id="filePesertaCsv" accept=".csv" class="hidden" onchange="prosesUnggahPesertaCsv()">
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Username / NIK</th>
+                                    <th>Password</th>
+                                    <th>Nama Lengkap</th>
+                                    <th>Status Ujian</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tblPesertaBody">
+                                <tr><td colspan="6" style="text-align:center;">Memuat basis data peserta...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB MANAJEMEN SOAL -->
+                <div id="tab-soal" class="admin-section hidden">
+                    <h2><i class="fa-solid fa-file-lines"></i> Impor / Ekspor Bank Soal</h2><br>
+                    
+                    <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 600px; margin-bottom: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                        <h4>Impor Berkas CSV ke Tab 'Soal'</h4><br>
+                        <input type="file" id="fileCsvInput" accept=".csv" style="margin-bottom:20px; display:block;"><br>
+                        
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn" style="flex: 2;" onclick="prosesImporCsv()">Unggah & Sinkronkan Soal</button>
+                            <button class="btn" style="flex: 1; background-color: #0284c7;" onclick="downloadTemplateSoal()"><i class="fa-solid fa-download"></i> Template Soal</button>
+                        </div>
+                    </div>
+                    
+                    <button class="btn" style="background:var(--success); width:auto;" onclick="prosesEksporCsv()">Unduh Bank Soal Aktif (.CSV)</button>
+                </div>
+
+                <!-- TAB PENGATURAN -->
+                <div id="tab-set" class="admin-section hidden">
+                    <h3>Pengaturan Tes & Token</h3><br>
+                    <div class="form-group" style="max-width:400px;">
+                        <label>Judul Ujian / Formasi</label>
+                        <input type="text" id="sysJudul" placeholder="Contoh: Ujian Kaur Pemda">
+
+                        <label style="margin-top:10px; display:block;">Token Ujian Utama</label>
+                        <input type="text" id="sysToken" value="DESA2026" style="text-transform: uppercase;">
+                        
+                        <label style="margin-top:10px; display:block;">Durasi Ujian (Menit)</label>
+                        <input type="number" id="sysDurasi" value="30">
+                        
+                        <label style="margin-top:10px; display:block;">Status Ujian</label>
+                        <select id="sysStatus">
+                            <option value="Aktif">Aktif</option>
+                            <option value="Nonaktif">Nonaktif</option>
+                        </select>
+                        
+                        <label style="margin-top:10px; display:block;">Waktu Mulai</label>
+                        <input type="datetime-local" id="sysWaktuMulai">
+                        
+                        <button class="btn" style="margin-top:15px;" onclick="saveSystemSettings()">Simpan Konfigurasi</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- MODAL POPUP FORM PESERTA (TAMBAH / EDIT) -->
+    <div id="pesertaModal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="modalPesertaTitle">Tambah Data Peserta</h3><br>
+            <input type="hidden" id="formPesertaRow">
+            <div class="form-group">
+                <label>Username / NIK</label>
+                <input type="text" id="formPesertaUser" placeholder="Masukkan NIK">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="text" id="formPesertaPass" placeholder="Masukkan Password">
+            </div>
+            <div class="form-group">
+                <label>Nama Lengkap</label>
+                <input type="text" id="formPesertaNama" placeholder="Masukkan Nama Lengkap">
+            </div>
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button class="btn" style="background:#6b7280;" onclick="closePesertaModal()">Batal</button>
+                <button class="btn" style="background:var(--success);" onclick="simpanPesertaTunggal()">Simpan Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== LOGIKA CORE JAVASCRIPT ==================== -->
+    <script>
+        const appState = {
+            role: 'user', username: '', namaPeserta: '',
+            questions: [], currentIdx: 0, answers: {}, doubtfuls: {},
+            timeRemaining: 1800, timerInterval: null
+        };
+
+        const API_URL = "https://script.google.com/macros/s/AKfycbzRChFaHVRqKCULGiNJbeSRvtdsjdmuk6qAwhhmLVFii9VgyLAjq5uwo35J9xr5XUjt/exec";
+        let intervalDashboard;
+
+        function toggleLoginField() {
+            const role = document.getElementById('loginRole').value;
+            document.getElementById('labelUsername').innerText = role === 'admin' ? "Username Admin" : "Username / NIK";
+        }
+
+       // --- BAGIAN 1: DEKLARASI VARIABEL GLOBAL (Hanya satu kali di atas) ---
+let totalWaktuDetik;
+let examInterval;
+let tokenUjianResmi = "";
+let judulUjianAktif = "Ujian Online"; // Default awal
+let durasiUjianMenit = 30;           // Default awal
+
+// --- BAGIAN 2: FUNGSI HANDLE LOGIN ---
+async function handleLogin() {
+    // 1. Ambil nilai dari input
+    const role = document.getElementById('loginRole').value; // Sesuaikan dengan id select di baris 92
+    const username = document.getElementById('usernameInput').value; // Sesuaikan dengan id di baris 99
+    const password = document.getElementById('password').value; // Sesuaikan dengan id di baris 103
+
+    // 2. Proses login
+    try {
+        // PENTING: Ganti URL_APPS_SCRIPT_ANDA dengan link Web App Anda yang asli
+        const url = "URL_APPS_SCRIPT_ANDA?action=login&role=" + role + "&username=" + username + "&password=" + password;
+        
+        const response = await fetch(url);
+        const result = await response.json();
+
+        if (result.status === "success") {
+            // Update variabel global dengan data dari server
+            durasiUjianMenit = parseInt(result.durasi) || 30; 
+            judulUjianAktif = result.judul || "Ruang Ujian Online";
+            tokenUjianResmi = result.token ? result.token.toUpperCase() : "";
+
+            // Tampilkan nama di lobby
+            const lobbyNama = document.getElementById('lobbyNama');
+            if (lobbyNama) lobbyNama.innerText = result.nama;
+            
+            // Pindah halaman
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('waitingRoom').classList.remove('hidden');
+        } else {
+            alert(result.message || "Username atau Password salah!");
+        }
+    } catch (error) {
+        alert("Terjadi kesalahan koneksi saat login.");
+        console.error("Error login:", error);
+    }
+}
+
+// 2. FUNGSI VERIFIKASI TOKEN YANG SUDAH BERSIH & AMAN
+async function verifyTokenAndStart() {
+    // Memastikan elemen input token ada di halaman HTML sebelum dibaca nilainya
+    const inputEl = document.getElementById('inputLobbyToken');
+    if (!inputEl) {
+        return alert("Elemen input token tidak ditemukan di halaman!");
+    }
+    
+    const tokenInput = inputEl.value.trim().toUpperCase();
+    
+    if (!tokenInput) {
+        return alert("Masukkan Token terlebih dahulu!");
+    }
+
+    // Pengecekan token secara lokal dari data yang didapat saat login
+    if (tokenUjianResmi !== tokenInput) {
+        return alert("Token yang Anda masukkan salah!");
+    }
+
+    // 1. Sinkronkan Judul Ujian di Header Peserta secara Dinamis
+    const headerTitle = document.querySelector('#userInterface header h3');
+    if (headerTitle) {
+        headerTitle.innerHTML = `<i class="fa-solid fa-file-signature"></i> ${judulUjianAktif}`;
+    }
+    
+    // 2. Set total waktu hitung mundur (Menit dikali 60 detik)
+    totalWaktuDetik = parseInt(durasiUjianMenit) * 60; 
+
+    // Pindah tampilan dari Ruang Tunggu ke Workspace Ujian
+    const waitingRoomEl = document.getElementById('waitingRoom');
+    const userInterfaceEl = document.getElementById('userInterface');
+    
+    if (waitingRoomEl && userInterfaceEl) {
+        waitingRoomEl.classList.add('hidden');
+        userInterfaceEl.classList.remove('hidden');
+    } else {
+        return alert("Elemen halaman ruang tunggu atau ruang ujian tidak ditemukan!");
+    }
+
+    // Jalankan fungsi pembuat/pengambil soal
+    if (typeof loadDaftarSoalPeserta === "function") {
+        loadDaftarSoalPeserta(); 
+    } else if (typeof fetchQuestions === "function") {
+        fetchQuestions(); 
+    }
+    
+    // Jalankan timer hitung mundur
+    if (typeof mulaiHitungMundur === "function") {
+        mulaiHitungMundur();
+    } else {
+        console.error("Fungsi mulaiHitungMundur() tidak ditemukan.");
+    }
+}
+
+function mulaiHitungMundur() {
+    clearInterval(examInterval);
+    const timerDisplay = document.getElementById('examTimer');
+
+    examInterval = setInterval(() => {
+        if (totalWaktuDetik <= 0) {
+            clearInterval(examInterval);
+            alert("Waktu ujian telah habis!");
+            forcedSubmitUjian(); // Ganti dengan fungsi simpan jawaban otomatis Anda
+            return;
+        }
+
+        totalWaktuDetik--;
+
+        let jam = Math.floor(totalWaktuDetik / 3600);
+        let menit = Math.floor((totalWaktuDetik % 3600) / 60);
+        let detik = totalWaktuDetik % 60;
+
+        // Format tampilan 2 digit (00:00:00)
+        jam = jam < 10 ? "0" + jam : jam;
+        menit = menit < 10 ? "0" + menit : menit;
+        detik = detik < 10 ? "0" + detik : detik;
+
+        timerDisplay.innerText = `${jam}:${menit}:${detik}`;
+    }, 1000);
+}
+
+        async function initExamSesi() {
+            try {
+                let response = await fetch(`${API_URL}?action=getQuestions`);
+                appState.questions = await response.json();
+                document.getElementById('userInterface').classList.remove('hidden');
+                startExamTimer(); renderQuestion(); renderNavGrid();
+            } catch (e) { alert("Gagal memuat soal."); }
+        }
+
+        function startExamTimer() {
+            let mins = parseInt(document.getElementById('sysDurasi').value) || 30;
+            appState.timeRemaining = mins * 60;
+            appState.timerInterval = setInterval(() => {
+                appState.timeRemaining--;
+                if(appState.timeRemaining <= 0) { clearInterval(appState.timerInterval); autoSubmitUjian(); }
+                let m = Math.floor(appState.timeRemaining / 60); let s = appState.timeRemaining % 60;
+                document.getElementById('examTimer').innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+            }, 1000);
+        }
+
+        function renderQuestion() {
+            let q = appState.questions[appState.currentIdx];
+            document.getElementById('displayNoSoal').innerText = `Soal No ${appState.currentIdx + 1}`;
+            document.getElementById('questionText').innerText = q.tanya;
+            let area = document.getElementById('answerArea'); area.innerHTML = "";
+            
+            q.opsi.forEach((o, i) => {
+                let char = String.fromCharCode(65 + i);
+                let div = document.createElement('div');
+                div.className = `option-item ${appState.answers[appState.currentIdx] === char ? 'selected' : ''}`;
+                div.innerHTML = `<strong>${char}.</strong> ${o}`;
+                div.onclick = () => { appState.answers[appState.currentIdx] = char; renderQuestion(); renderNavGrid(); };
+                area.appendChild(div);
+            });
+        }
+
+        function renderNavGrid() {
+            let grid = document.getElementById('navGridBox'); grid.innerHTML = "";
+            appState.questions.forEach((_, i) => {
+                let d = document.createElement('div');
+                d.className = `nav-num ${appState.answers[i] ? 'answered' : 'unanswered'} ${appState.currentIdx === i ? 'active-now' : ''}`;
+                d.innerText = i + 1;
+                d.onclick = () => { appState.currentIdx = i; renderQuestion(); renderNavGrid(); };
+                grid.appendChild(d);
+            });
+        }
+
+        function nextQuestion() { appState.currentIdx++; renderQuestion(); renderNavGrid(); }
+        function prevQuestion() { appState.currentIdx--; renderQuestion(); renderNavGrid(); }
+
+        function switchAdminTab(tabName) {
+            document.querySelectorAll('.admin-section').forEach(s => s.classList.add('hidden'));
+            document.querySelectorAll('.sidebar-menu li').forEach(m => m.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            document.getElementById(`menu-${tabName}`).classList.add('active');
+            if(tabName === 'peserta') loadPesertaData();
+        }
+
+        // ==================== OPERASI CRUD JAVASCRIPT PESERTA ====================
+        async function loadPesertaData() {
+            const body = document.getElementById('tblPesertaBody');
+            body.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Mengunduh data Google Sheet...</td></tr>";
+            try {
+                let res = await fetch(`${API_URL}?action=getPeserta`);
+                let result = await res.json();
+                if(result.status === "success") {
+                    body.innerHTML = "";
+                    result.data.forEach((p, idx) => {
+                        let tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${idx + 1}</td>
+                            <td><b>${p.username}</b></td>
+                            <td><code>${p.password}</code></td>
+                            <td>${p.nama}</td>
+                            <td><span style="padding:3px 8px; border-radius:12px; font-size:0.8rem; background:#cbd5e1">${p.status}</span></td>
+                            <td>
+                                <button class="btn btn-sm" style="background:var(--warning)" onclick="openEditPesertaModal(${p.rowNum}, '${p.username}', '${p.password}', '${p.nama}')"><i class="fa-solid fa-pen"></i></button>
+                                <button class="btn btn-sm" style="background:var(--danger)" onclick="hapusPeserta(${p.rowNum})"><i class="fa-solid fa-trash"></i></button>
+                            </td>
+                        `;
+                        body.appendChild(tr);
+                    });
+                }
+            } catch(e) { body.innerHTML = "<tr><td colspan='6' style='color:red; text-align:center;'>Gagal memuat data peserta.</td></tr>"; }
+        }
+
+        function openAddPesertaModal() {
+            document.getElementById('modalPesertaTitle').innerText = "Tambah Peserta Baru";
+            document.getElementById('formPesertaRow').value = "";
+            document.getElementById('formPesertaUser').value = "";
+            document.getElementById('formPesertaPass').value = "";
+            document.getElementById('formPesertaNama').value = "";
+            document.getElementById('pesertaModal').classList.remove('hidden');
+        }
+
+        function openEditPesertaModal(row, user, pass, nama) {
+            document.getElementById('modalPesertaTitle').innerText = "Ubah Data Peserta";
+            document.getElementById('formPesertaRow').value = row;
+            document.getElementById('formPesertaUser').value = user;
+            document.getElementById('formPesertaPass').value = pass;
+            document.getElementById('formPesertaNama').value = nama;
+            document.getElementById('pesertaModal').classList.remove('hidden');
+        }
+
+        function closePesertaModal() { document.getElementById('pesertaModal').classList.add('hidden'); }
+
+        async function simpanPesertaTunggal() {
+            const row = document.getElementById('formPesertaRow').value;
+            const user = document.getElementById('formPesertaUser').value.trim();
+            const pass = document.getElementById('formPesertaPass').value.trim();
+            const nama = document.getElementById('formPesertaNama').value.trim();
+
+            if(!user || !pass || !nama) return alert("Mohon lengkapi semua kolom!");
+            const actionType = row === "" ? "addPeserta" : "editPeserta";
+
+            try {
+                let res = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: actionType, rowNum: row, username: user, password: pass, nama: nama })
+                });
+                let result = await res.json();
+                if(result.status === "success") { alert("Berhasil menyimpan data!"); closePesertaModal(); loadPesertaData(); }
+            } catch(e) { alert("Koneksi gagal."); }
+        }
+
+        async function hapusPeserta(rowNum) {
+            if(confirm("Apakah Anda yakin ingin menghapus baris peserta ini secara permanen dari basis data?")) {
+                try {
+                    let res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'deletePeserta', rowNum: rowNum }) });
+                    let r = await res.json();
+                    if(r.status === "success") { loadPesertaData(); }
+                } catch(e) { alert("Gagal menghapus."); }
+            }
+        }
+
+        function downloadTemplatePeserta() {
+            let csvContent = "Username/NIK,Password,Nama Lengkap\n\"1234567890\",\"pass123\",\"Budi Santoso\"\n\"1234567891\",\"pass456\",\"Siti Aminah\"";
+            let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            let link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", "Template_Peserta_CBT.csv");
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+
+        function prosesUnggahPesertaCsv() {
+            const file = document.getElementById('filePesertaCsv').files[0];
+            if(!file) return;
+            const r = new FileReader();
+            r.onload = async function(e) {
+                try {
+                    let res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'importPesertaCsv', csvData: e.target.result }) });
+                    let result = await res.json();
+                    if(result.status === "success") { alert(`Berhasil mengimpor ${result.total} peserta.`); loadPesertaData(); }
+                } catch(err) { alert("Gagal mengunggah CSV."); }
+            };
+            r.readAsText(file);
+        }
+
+        // --- DASHBOARD MONITORING & CONTEXTS OTHER ---
+        async function muatStatistikDashboard() {
+            try {
+                let res = await fetch(`${API_URL}?action=getDashboardStats`);
+                let d = await res.json();
+                if (d.status === 'success') {
+                    document.getElementById('statTotalPeserta').innerText = d.totalPeserta;
+                    document.getElementById('statPesertaLogin').innerText = d.pesertaLogin;
+                    document.getElementById('statPesertaSelesai').innerText = d.pesertaSelesai;
+                    document.getElementById('statTotalSoal').innerText = d.totalSoal;
+                }
+            } catch (e) {}
+        }
+        function inisialisasiDashboard() { muatStatistikDashboard(); clearInterval(intervalDashboard); intervalDashboard = setInterval(muatStatistikDashboard, 15000); }
+        // Fungsi untuk mengambil data pengaturan saat tab dibuka
+        async function loadSystemSettings() {
+            try {
+                let response = await fetch(`${API_URL}?action=getSettings`);
+                let settings = await response.json();
+                
+                // Set nilai form sesuai database Google Sheet
+                document.getElementById('sysJudul').value = settings.judul || "";
+                document.getElementById('sysToken').value = settings.token || "";
+                document.getElementById('sysDurasi').value = settings.durasi || "";
+                document.getElementById('sysStatus').value = settings.aktif || "Nonaktif";
+                
+                if(settings.waktuMulai) {
+                    // Penyesuaian format datetime-local jika diperlukan
+                    document.getElementById('sysWaktuMulai').value = settings.waktuMulai.split('.')[0];
+                }
+            } catch(e) {
+                console.log("Gagal memuat pengaturan awal.");
+            }
+        }
+
+        // Jalankan load data otomatis saat admin berpindah ke tab pengaturan
+        function switchAdminTab(tabName) {
+            document.querySelectorAll('.admin-section').forEach(s => s.classList.add('hidden'));
+            document.querySelectorAll('.sidebar-menu li').forEach(m => m.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            document.getElementById(`menu-${tabName}`).classList.add('active');
+            
+            if(tabName === 'peserta') loadPesertaData();
+            if(tabName === 'set') loadSystemSettings(); // Tambahan baris ini
+        }
+
+        // Fungsi menyimpan konfigurasi riil ke database Google Sheet
+        async function saveSystemSettings() {
+            const judul = document.getElementById('sysJudul').value.trim();
+            const token = document.getElementById('sysToken').value.trim().toUpperCase();
+            const durasi = document.getElementById('sysDurasi').value;
+            const status = document.getElementById('sysStatus').value;
+            const waktuMulai = document.getElementById('sysWaktuMulai').value;
+
+            if(!judul || !token || !durasi) {
+                return alert("Kolom Judul, Token, dan Durasi tidak boleh kosong!");
+            }
+
+            try {
+                let response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: "saveSettings",
+                        judul: judul,
+                        token: token,
+                        durasi: durasi,
+                        status: status,
+                        waktuMulai: waktuMulai
+                    })
+                });
+                
+                let result = await response.json();
+                if(result.status === "success") {
+                    alert("Pengaturan Berhasil Disimpan ke Google Sheet!");
+                } else {
+                    alert("Gagal menyimpan.");
+                }
+            } catch(e) {
+                alert("Terjadi kesalahan koneksi sistem.");
+            }
+        }
+        function logout() { window.location.reload(); }
+
+// Fungsi untuk mengunduh contoh/template file CSV Soal sesuai kolom Google Sheet
+        function downloadTemplateSoal() {
+            // Header kolom disesuaikan persis: ID, Tipe, Pertanyaan, OpsiA, OpsiB, OpsiC, OpsiD, OpsiE, Kunci
+            const headers = ["ID", "Tipe", "Pertanyaan", "OpsiA", "OpsiB", "OpsiC", "OpsiD", "OpsiE", "Kunci"];
+            
+            // Baris contoh pengisian data soal
+            const contohBaris1 = ["1", "PG", "Masa jabatan Kepala Desa berdasarkan aturan terbaru adalah...", "5 tahun", "6 tahun", "8 tahun", "10 tahun", "seumur hidup", "C"];
+            const contohBaris2 = ["2", "PG", "Rencana kegiatan pembangunan desa jangka menengah disebut...", "RPJMDes", "RKPDes", "APBDes", "RPJMD", "RKPD", "B"];
+            
+            // Satukan menjadi format CSV mentah dengan penanganan tanda kutip ganda yang aman
+            const csvRows = [
+                headers.join(","),
+                contohBaris1.map(val => `"${val.replace(/"/g, '""')}"`).join(","),
+                contohBaris2.map(val => `"${val.replace(/"/g, '""')}"`).join(",")
+            ];
+            
+            const csvContent = csvRows.join("\n");
+            
+            // Sediakan trigger download browser otomatis
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", "Template_Soal_CBT.csv");
+            document.body.appendChild(link);
+            
+            link.click();
+            document.body.removeChild(link);
+        }
+
+
+// 1. FUNGSI UNTUK UNGGAH & SINKRONKAN SOAL (IMPOR CSV)
+        async function prosesImporCsv() {
+            const fileInput = document.getElementById('fileCsvInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                return alert("Silakan pilih file CSV soal terlebih dahulu!");
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const text = e.target.result;
+                
+                try {
+                    // Mengirim data CSV ke Google Apps Script
+                    let response = await fetch(API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            action: 'importCsv',
+                            csvData: text
+                        })
+                    });
+                    
+                    let result = await response.json();
+                    
+                    if (result.status === "success") {
+                        alert(`Berhasil menyinkronkan data! ${result.total} soal telah diimpor ke Google Sheet.`);
+                        fileInput.value = ""; // Reset input file
+                    } else {
+                        alert("Gagal menyimpan ke Google Sheet: " + result.message);
+                    }
+                } catch (error) {
+                    alert("Terjadi kesalahan koneksi saat mengunggah soal.");
+                }
+            };
+            
+            reader.readAsText(file);
+        }
+
+        // 2. FUNGSI UNTUK UNDUH BANK SOAL AKTIF (EKSPOR CSV)
+        async function prosesEksporCsv() {
+            try {
+                // Mengambil data CSV bentukan dari Google Apps Script
+                let response = await fetch(`${API_URL}?action=exportCsv`);
+                let result = await response.json();
+                
+                if (result.status === "success" && result.csvString) {
+                    // Membuat trigger download otomatis di browser
+                    const blob = new Blob([result.csvString], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", "Ekspor_Bank_Soal_CBT.csv");
+                    document.body.appendChild(link);
+                    
+                    link.click();
+                    document.body.removeChild(link);
+                } else {
+                    alert("Gagal mengambil data bank soal dari server.");
+                }
+            } catch (error) {
+                alert("Terjadi kesalahan koneksi saat mengunduh bank soal.");
+            }
+        }
     </script>
 </body>
 </html>
