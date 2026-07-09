@@ -157,7 +157,7 @@
     </div>
 
     <!-- ==================== INTERFACE OPERATOR (ADMIN) ==================== -->
-    <div id="adminInterface" class="hidden">
+    <div id="adminDashboard" class="hidden">
         <header>
             <h3><i class="fa-solid fa-toolbox"></i> Panel Administrasi CBT</h3>
             <button class="btn" style="width:auto; background-color: var(--danger);" onclick="logout()"><i class="fa-solid fa-power-off"></i> Keluar</button>
@@ -323,31 +323,39 @@ let durasiUjianMenit = 30;           // Default awal
 // --- BAGIAN 2: FUNGSI HANDLE LOGIN ---
 async function handleLogin() {
     // 1. Ambil nilai dari input
-    const role = document.getElementById('loginRole').value; // Sesuaikan dengan id select di baris 92
-    const username = document.getElementById('usernameInput').value; // Sesuaikan dengan id di baris 99
-    const password = document.getElementById('password').value; // Sesuaikan dengan id di baris 103
+    const role = document.getElementById('loginRole').value;
+    const username = document.getElementById('usernameInput').value;
+    const password = document.getElementById('password').value;
 
     // 2. Proses login
     try {
-        // PENTING: Ganti URL_APPS_SCRIPT_ANDA dengan link Web App Anda yang asli
-        const url = "URL_APPS_SCRIPT_ANDA?action=login&role=" + role + "&username=" + username + "&password=" + password;
+        const url = "https://script.google.com/macros/s/AKfycbzRChFaHVRqKCULGiNJbeSRvtdsjdmuk6qAwhhmLVFii9VgyLAjq5uwo35J9xr5XUjt/exec?action=login&role=" + role + "&username=" + username + "&password=" + password;
         
         const response = await fetch(url);
         const result = await response.json();
 
         if (result.status === "success") {
-            // Update variabel global dengan data dari server
+            // Update variabel global
             durasiUjianMenit = parseInt(result.durasi) || 30; 
             judulUjianAktif = result.judul || "Ruang Ujian Online";
             tokenUjianResmi = result.token ? result.token.toUpperCase() : "";
 
-            // Tampilkan nama di lobby
-            const lobbyNama = document.getElementById('lobbyNama');
-            if (lobbyNama) lobbyNama.innerText = result.nama;
-            
-            // Pindah halaman
+            // Sembunyikan halaman login
             document.getElementById('loginPage').classList.add('hidden');
-            document.getElementById('waitingRoom').classList.remove('hidden');
+
+            // --- LOGIKA PERPINDAHAN HALAMAN ---
+            if (role === 'admin') {
+                document.getElementById('adminDashboard').classList.remove('hidden');
+            } else {
+                // Tampilkan data peserta di Ruang Tunggu
+                const lobbyNama = document.getElementById('lobbyNama');
+                const lobbyUsername = document.getElementById('lobbyUsername'); // Pastikan ID ini ada di HTML Anda
+                
+                if (lobbyNama) lobbyNama.innerText = result.nama;
+                if (lobbyUsername) lobbyUsername.innerText = username; // Mengisi NIK/Username dari input yang dimasukkan
+                
+                document.getElementById('waitingRoom').classList.remove('hidden');
+            }
         } else {
             alert(result.message || "Username atau Password salah!");
         }
@@ -459,20 +467,41 @@ function mulaiHitungMundur() {
         }
 
         function renderQuestion() {
-            let q = appState.questions[appState.currentIdx];
-            document.getElementById('displayNoSoal').innerText = `Soal No ${appState.currentIdx + 1}`;
-            document.getElementById('questionText').innerText = q.tanya;
-            let area = document.getElementById('answerArea'); area.innerHTML = "";
-            
-            q.opsi.forEach((o, i) => {
-                let char = String.fromCharCode(65 + i);
-                let div = document.createElement('div');
-                div.className = `option-item ${appState.answers[appState.currentIdx] === char ? 'selected' : ''}`;
-                div.innerHTML = `<strong>${char}.</strong> ${o}`;
-                div.onclick = () => { appState.answers[appState.currentIdx] = char; renderQuestion(); renderNavGrid(); };
-                area.appendChild(div);
+    // 1. Ambil data soal
+    let q = appState.questions[appState.currentIdx];
+
+    // 2. SAFETY CHECK: Pastikan data soal ada sebelum mengakses propertinya
+    if (!q) {
+        console.error("Soal tidak ditemukan pada indeks:", appState.currentIdx);
+        document.getElementById('questionText').innerText = "Memuat soal...";
+        return; // Hentikan fungsi jika data belum ada
+    }
+
+    // 3. Tampilkan Nomor Soal
+    const noSoalEl = document.getElementById('displayNoSoal');
+    if (noSoalEl) noSoalEl.innerText = `Soal No ${appState.currentIdx + 1}`;
+
+    // 4. Tampilkan Pertanyaan
+    const questionTextEl = document.getElementById('questionText');
+    if (questionTextEl) questionTextEl.innerText = q.tanya;
+
+    // 5. Bersihkan area jawaban
+    let area = document.getElementById('answerArea');
+    if (area) {
+        area.innerHTML = "";
+        
+        // --- TAMBAHAN: Logika Render Pilihan Jawaban ---
+        // Pastikan Anda memproses pilihan jawaban di sini (contoh sederhana):
+        if (q.pilihan) {
+            q.pilihan.forEach((opsi, index) => {
+                let btn = document.createElement('button');
+                btn.innerText = opsi;
+                btn.onclick = () => saveAnswer(index);
+                area.appendChild(btn);
             });
         }
+    }
+}
 
         function renderNavGrid() {
             let grid = document.getElementById('navGridBox'); grid.innerHTML = "";
