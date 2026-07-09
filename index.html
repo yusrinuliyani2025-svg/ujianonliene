@@ -804,6 +804,44 @@ function mulaiHitungMundur() {
                 alert("Terjadi kesalahan koneksi saat mengunduh bank soal.");
             }
         }
+
+
+// Pastikan fungsi ini ada di skrip Anda untuk mengisi data
+async function loadData() {
+    try {
+        console.log("Mengambil data soal dari server...");
+        const response = await fetch(`${API_URL}?action=getQuestions`);
+        const data = await response.json();
+        
+        // Debugging: Melihat isi data yang dikirim server di Console
+        console.log("Data diterima:", data);
+
+        // Jika server mengembalikan pesan error
+        if (data.status === "error") {
+            document.getElementById('questionText').innerText = "Gagal memuat soal: " + data.message;
+            document.getElementById('answerArea').innerHTML = "";
+            return;
+        }
+
+        appState.questions = data;
+
+        // Jika array soal ternyata kosong / tidak ada data di sheet
+        if (!appState.questions || appState.questions.length === 0) {
+            document.getElementById('displayNoSoal').innerText = "-";
+            document.getElementById('questionText').innerText = "Maaf, belum ada soal yang tersedia di server (Bank Soal Kosong).";
+            document.getElementById('answerArea').innerHTML = "";
+            return;
+        }
+
+        // Jika data soal ada, baru jalankan render
+        renderQuestion();
+        renderNavGrid();
+    } catch (e) { 
+        console.error("Gagal memuat soal", e); 
+        document.getElementById('questionText').innerText = "Terjadi masalah koneksi ke server. Silakan muat ulang halaman.";
+    }
+}
+
     </script>
 </body>
 </html>
