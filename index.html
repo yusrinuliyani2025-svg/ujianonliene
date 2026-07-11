@@ -390,24 +390,30 @@
 
     
 
-<!-- ==================== LOGIKA CORE JAVASCRIPT ==================== -->
+<!-- ==================== LOGIKA CORE JAVASCRIPT & REKAP BERITA ACARA ==================== -->
 <script>
     const appState = {
-        role: 'user', username: '', namaPeserta: '',
+        role: 'user', username: '', namaPeserta: '', namaAdmin: '', 
         questions: [], currentIdx: 0, answers: {}, doubtfuls: {},
         timeRemaining: 1800, timerInterval: null,
         tampilkanSkor: 'Tidak',
-        // Variabel penampung draf dari cloud saat login
         savedSisaWaktu: null,
         savedDrafJawaban: ''
     };
 
-    // Cache lokal untuk memetakan Username/NIK ke Nama Asli Peserta
+    // Cache lokal & Global State untuk sinkronisasi data Berita Acara dinamis
     let mapPesertaNama = {};
+    if (typeof window.listPesertaGlobal === 'undefined') window.listPesertaGlobal = [];
+    if (typeof window.listHasilGlobal === 'undefined') window.listHasilGlobal = [];
 
     const API_URL = "https://script.google.com/macros/s/AKfycbzRChFaHVRqKCULGiNJbeSRvtdsjdmuk6qAwhhmLVFii9VgyLAjq5uwo35J9xr5XUjt/exec";
     let intervalDashboard; let totalWaktuDetik; let examInterval;
-    let tokenUjianResmi = ""; let judulUjianAktif = "Ujian Online"; let durasiUjianMenit = 30;            
+    let tokenUjianResmi = ""; let judulUjianAktif = "Ujian Online"; let durasiUjianMenit = 30;        
+
+    if (typeof window.jumlahPelanggaran === 'undefined') window.jumlahPelanggaran = 0;
+    if (typeof window.MAX_PELANGGARAN === 'undefined') window.MAX_PELANGGARAN = 3;
+    if (typeof window.statusUjianSelesai === 'undefined') window.statusUjianSelesai = false;
+    if (typeof window.ujianSedangBerjalan === 'undefined') window.ujianSedangBerjalan = false;
 
     function toggleLoginField() {
         const role = document.getElementById('loginRole').value;
@@ -431,15 +437,17 @@
                 document.getElementById('loginPage').classList.add('hidden');
 
                 if (role === 'admin') {
+                    appState.role = 'admin';
+                    appState.namaAdmin = result.nama || "Administrator"; 
                     document.getElementById('adminDashboard').classList.remove('hidden');
                     await sinkronisasiCachePeserta();
-                    inisialisasiDashboard();
+                    if (typeof inisialisasiDashboard === 'function') inisialisasiDashboard();
                 } else {
+                    appState.role = 'user';
                     appState.username = username;
                     appState.namaPeserta = result.nama;
                     appState.tampilkanSkor = result.tampilkanSkor || "Tidak"; 
 
-                    // [BARU] Ambil data draf yang menggantung di Google Sheet (jika ada)
                     appState.savedSisaWaktu = result.sisaWaktu;
                     appState.savedDrafJawaban = result.drafJawaban;
 
@@ -461,12 +469,12 @@
             let res = await fetch(`${API_URL}?action=getPeserta`);
             let result = await res.json();
             if(result.status === "success") {
+                window.listPesertaGlobal = result.data; 
                 result.data.forEach(p => { mapPesertaNama[p.username] = p.nama; });
             }
         } catch(e) { console.error("Gagal sinkronisasi data nama peserta:", e); }
     }
 
-    // [BARU] FUNGSI KHUSUS UNTUK MENYIMPAN JAWABAN & WAKTU KE GOOGLE SHEET (CLOUD)
     async function simpanDrafUjianKeCloud() {
         if (!appState.username || appState.role === 'admin') return;
         try {
@@ -476,13 +484,10 @@
                     action: 'simpanDrafCloud',
                     username: appState.username,
                     sisaWaktu: totalWaktuDetik,
-                    jawaban: appState.answers // Menyimpan data indeks jawaban mentah
+                    jawaban: appState.answers 
                 })
             });
-            console.log("Autosave cloud berhasil dijalankan...");
-        } catch (e) {
-            console.error("Gagal melakukan enkripsi backup ke cloud:", e);
-        }
+        } catch (e) { console.error("Gagal backup ke cloud:", e); }
     }
 
     async function verifyTokenAndStart() {
@@ -503,27 +508,29 @@
             durasiUjianMenit = parseInt(settings.durasi) || 30;
             appState.tampilkanSkor = settings.tampilkanSkor || "Tidak"; 
 
-            // [BARU] VALIDASI RESTORE: Cek apakah ada sisa waktu dari cloud
+            localStorage.setItem('judulUjian', judulUjianAktif);
+
             if (appState.savedSisaWaktu && parseInt(appState.savedSisaWaktu) > 0) {
                 totalWaktuDetik = parseInt(appState.savedSisaWaktu);
                 if (appState.savedDrafJawaban) {
-                    try {
-                        appState.answers = JSON.parse(appState.savedDrafJawaban);
-                    } catch (e) { console.error("Gagal memulihkan draf jawaban:", e); }
+                    try { appState.answers = JSON.parse(appState.savedDrafJawaban); } catch (e) {}
                 }
-                alert("Sistem mendeteksi sesi ujian Anda terputus. Sisa waktu dan jawaban Anda berhasil dipulihkan dari Cloud Database!");
+                alert("Sesi terputus berhasil dipulihkan dari Cloud Database!");
             } else {
-                // Jika tidak ada data menggantung, mulai ujian baru secara normal
                 totalWaktuDetik = durasiUjianMenit * 60; 
                 appState.answers = {};
             }
+
+            window.ujianSedangBerjalan = true;
+            window.statusUjianSelesai = false;
+            window.jumlahPelorgaran = 0;
 
             document.querySelector('#userInterface header h3').innerHTML = `<i class="fa-solid fa-file-signature"></i> ${judulUjianAktif}`;
             document.getElementById('waitingRoom').classList.add('hidden');
             document.getElementById('userInterface').classList.remove('hidden');
             document.getElementById('userNameDisplay').innerHTML = `<i class="fa-solid fa-user-circle"></i> ${appState.namaPeserta}`;
 
-            loadData(); 
+            if (typeof loadData === 'function') loadData(); 
             mulaiHitungMundur();
         } catch (error) { alert("Terjadi kesalahan koneksi status ujian."); }
     }
@@ -531,15 +538,15 @@
     function mulaiHitungMundur() {
         clearInterval(examInterval);
         examInterval = setInterval(() => {
-            if (totalWaktuDetik <= 0) { clearInterval(examInterval); forcedSubmitUjian(); return; }
+            if (totalWaktuDetik <= 0) { 
+                clearInterval(examInterval); 
+                forcedSubmitUjian(); 
+                return; 
+            }
             totalWaktuDetik--;
             let jam = Math.floor(totalWaktuDetik / 3600), menit = Math.floor((totalWaktuDetik % 3600) / 60), detik = totalWaktuDetik % 60;
             document.getElementById('examTimer').innerText = `${jam<10?"0"+jam:jam}:${menit<10?"0"+menit:menit}:${detik<10?"0"+detik:detik}`;
-            
-            // [BARU] Pemicu Autosave Otomatis ke Cloud setiap 20 detik berjalan
-            if (totalWaktuDetik > 0 && totalWaktuDetik % 20 === 0) {
-                simpanDrafUjianKeCloud();
-            }
+            if (totalWaktuDetik > 0 && totalWaktuDetik % 20 === 0) { simpanDrafUjianKeCloud(); }
         }, 1000);
     }
 
@@ -574,10 +581,11 @@
         } else {
             document.getElementById('scoreWrapperContainer').innerHTML = `<div style="font-size:1.1rem; color:#1e293b; font-weight:800; padding:5px;">Evaluasi Selesai.<br><span style="color:#4f46e5; font-size:0.9rem;">Nilai disimpan, tunggu pengumuman panitia.</span></div>`;
         }
-        startFireworksEngine();
+        if (typeof startFireworksEngine === 'function') startFireworksEngine();
     }
 
     async function forcedSubmitUjian() {
+        window.ujianSedangBerjalan = false; window.statusUjianSelesai = true;
         try {
             const skorAkhir = hitungSkorBobot(); const lembarJawaban = dapatkanLembarJawabanTeks();
             await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'submitUjian', username: appState.username, jawaban: lembarJawaban, skor: skorAkhir }) });
@@ -586,39 +594,17 @@
     }
 
     async function submitUjianManual() {
-    // MODIFIKASI: Jika statusUjianSelesai sudah true (karena curang), bypass confirm.
-    // Jika selesai normal, jalankan confirm seperti biasa.
-    if (statusUjianSelesai || confirm("Apakah Anda yakin ingin mengakhiri ujian ini? Jawaban yang sudah dikirim tidak dapat diubah kembali.")) {
-        
-        // DI SINI TEMPATNYA MIN! 
-        // Ubah langsung jadi true agar pelacakan anti-nyontek berhenti total
-        statusUjianSelesai = false; 
-
-        try {
-            const skorAkhir = hitungSkorBobot(); 
-            const lembarJawaban = dapatkanLembarJawabanTeks();
-            
-            // Catatan: Menggunakan appState.username sesuai bawaan skrip asli Anda
-            await fetch(API_URL, { 
-                method: 'POST', 
-                body: JSON.stringify({ 
-                    action: 'submitUjian', 
-                    username: appState.username, 
-                    jawaban: lembarJawaban, 
-                    skor: skorAkhir 
-                }) 
-            });
-            
-            tampilkanHalamanSkorMeriah(skorAkhir);
-        } catch (e) { 
-            alert("Terjadi kesalahan koneksi data."); 
+        if (typeof periksaKoneksiSebelumAksi === 'function') { if (!periksaKoneksiSebelumAksi()) return; }
+        if (window.statusUjianSelesai || confirm("Apakah Anda yakin ingin mengakhiri ujian ini?")) {
+            window.ujianSedangBerjalan = false; window.statusUjianSelesai = true;
+            try {
+                const skorAkhir = hitungSkorBobot(); const lembarJawaban = dapatkanLembarJawabanTeks();
+                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'submitUjian', username: appState.username, jawaban: lembarJawaban, skor: skorAkhir }) });
+                tampilkanHalamanSkorMeriah(skorAkhir);
+            } catch (e) { alert("Terjadi kesalahan koneksi data."); }
         }
     }
-}
 
-
-
-    // --- SELEKTOR TAB DASHBOARD OPERATOR ---
     function switchAdminTab(tabName) {        
         document.querySelectorAll('.admin-section').forEach(s => s.classList.add('hidden'));        
         document.querySelectorAll('.sidebar-menu li').forEach(m => m.classList.remove('active'));        
@@ -626,35 +612,29 @@
         const targetMenu = document.getElementById(`menu-${tabName}`);        
         if(targetTab) targetTab.classList.remove('hidden');        
         if(targetMenu) targetMenu.classList.add('active');        
-        if(tabName === 'peserta') loadPesertaData();        
-        if(tabName === 'set') loadSystemSettings();     
+        if(tabName === 'peserta' && typeof loadPesertaData === 'function') loadPesertaData();        
+        if(tabName === 'set' && typeof loadSystemSettings === 'function') loadSystemSettings();     
         if(tabName === 'hasil') loadHasilUjianData();     
     }
 
-    // =========================================================================
-    // LOGIKA KELOLA DATA HASIL UJIAN & HAPUS/EDIT/PDF
-    // =========================================================================
     async function loadHasilUjianData() {
         const body = document.getElementById('tblHasilBody');
         if(!body) return;
         body.innerHTML = "<tr><td colspan='5' style='text-align:center;'>Mengambil data kelulusan dari Google Sheet...</td></tr>";
-        
         try {
             await sinkronisasiCachePeserta();
             let res = await fetch(`${API_URL}?action=getHasil`);
             let result = await res.json();
-            
             if(result.status === "success") {
+                window.listHasilGlobal = result.data; 
                 body.innerHTML = "";
                 if(result.data.length === 0) {
                     body.innerHTML = "<tr><td colspan='5' style='text-align:center;'>Belum ada peserta yang menyelesaikan ujian.</td></tr>";
                     return;
                 }
-                
                 result.data.forEach((h, idx) => {
                     let namaTampil = mapPesertaNama[h.username] || `Tidak Diketahui (${h.username})`;
                     let tanggalTampil = h.timestamp ? h.timestamp.split('T')[0] : '-';
-                    
                     let tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${idx + 1}</td>
@@ -669,13 +649,176 @@
                     `;
                     body.appendChild(tr);
                 });
-            } else {
-                body.innerHTML = "<tr><td colspan='5' style='text-align:center; color:red;'>Gagal memuat rekap tab hasil.</td></tr>";
-            }
-        } catch(e) {
-            body.innerHTML = "<tr><td colspan='5' style='text-align:center; color:red;'>Kesalahan transmisi data hasil.</td></tr>";
-        }
+            } else { body.innerHTML = "<tr><td colspan='5' style='text-align:center; color:red;'>Gagal memuat rekap tab hasil.</td></tr>"; }
+        } catch(e) { body.innerHTML = "<tr><td colspan='5' style='text-align:center; color:red;'>Kesalahan transmisi data hasil.</td></tr>"; }
     }
+
+    // =========================================================================================
+    // UPDATE ENGINE CETAK: FITUR KOP LOGO DAN 3 PENANDATANGAN (PENGAWAS, PROKTOR, KEPALA DESA)
+    // =========================================================================================
+    window.cetakBeritaAcara = function() {
+        const judul = localStorage.getItem('judulUjian') || judulUjianAktif || "Ujian Online";
+        const judulUpper = judul.toUpperCase();
+
+        const dateObj = new Date();
+        const namaHari = dateObj.toLocaleDateString('id-ID', { weekday: 'long' });
+        const tanggalAngka = dateObj.getDate();
+        const namaBulan = dateObj.toLocaleDateString('id-ID', { month: 'long' });
+        const tahunAngka = dateObj.getFullYear();
+        const defaultKalimatHari = `Pada hari ini, ${namaHari} tanggal ${tanggalAngka} bulan ${namaBulan} tahun ${tahunAngka}`;
+
+        let teksHariIniBaku = prompt("Sesuaikan kalimat Pembuka Hari & Tanggal Ujian:", defaultKalimatHari);
+        if (teksHariIniBaku === null) return;
+        if (teksHariIniBaku.trim() === "") teksHariIniBaku = defaultKalimatHari;
+
+        let namaPengawasInput = prompt("Masukkan Nama Lengkap Pengawas Ujian:", "");
+        if (namaPengawasInput === null) return;
+        if (namaPengawasInput.trim() === "") namaPengawasInput = "___________________________";
+
+        let defaultAdmin = appState.namaAdmin && appState.namaAdmin !== "Administrator" ? appState.namaAdmin : "";
+        let namaAdminProktor = prompt("Masukkan Nama Lengkap Admin / Proktor CBT:", defaultAdmin);
+        if (namaAdminProktor === null) return;
+        if (namaAdminProktor.trim() === "") namaAdminProktor = "___________________________";
+
+        // Tambahan Prompt Kepala Desa
+        let namaKadesInput = prompt("Masukkan Nama Lengkap Kepala Desa:", "");
+        if (namaKadesInput === null) return;
+        if (namaKadesInput.trim() === "") namaKadesInput = "___________________________";
+
+        const totalPeserta = window.listPesertaGlobal ? window.listPesertaGlobal.length : 0;
+        const pesertaHadir = window.listPesertaGlobal ? window.listPesertaGlobal.filter(p => {
+            const st = p.status ? p.status.toLowerCase() : '';
+            return st === 'sudah login' || st === 'aktif mengerjakan' || st === 'selesai';
+        }).length : 0;
+        const pesertaSelesai = window.listHasilGlobal ? window.listHasilGlobal.length : 0;
+
+        let iframe = document.getElementById('printBeritaAcaraFrame');
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'printBeritaAcaraFrame';
+            iframe.style.position = 'fixed';
+            iframe.style.bottom = '0';
+            iframe.style.right = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = 'none';
+            document.body.appendChild(iframe);
+        }
+
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(`
+        <html>
+        <head>
+            <title>Berita Acara - ${judul}</title>
+            <style>
+                body { font-family: Arial, sans-serif; color: #000; line-height: 1.6; padding: 30px; }
+                .text-center { text-align: center; }
+                
+                /* Layout Kop Surat dengan Logo */
+                .kop-container { display: flex; align-items: center; justify-content: center; margin-bottom: 5px; position: relative; min-height: 80px; }
+                .kop-logo { position: absolute; left: 10px; top: 0; height: 75px; width: auto; }
+                .kop-text { text-align: center; width: 100%; padding: 0 90px; }
+                
+                .header-title { font-size: 18px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+                .header-sub { font-size: 14px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+                .header-desc { font-size: 12px; font-style: italic; color: #333; }
+                
+                hr.double { border-top: 3px double #000; border-bottom: 1px solid #000; height: 4px; margin-top: 15px; margin-bottom: 25px; }
+                .doc-title { font-size: 15px; font-weight: bold; text-decoration: underline; margin-bottom: 25px; }
+                .content-p { text-align: justify; margin-bottom: 25px; font-size: 14px; }
+                
+                .info-table { width: 55%; margin: 0 0 30px 60px; font-size: 14px; border-collapse: collapse; }
+                .info-table td { padding: 5px 4px; vertical-align: top; }
+                .info-table td.label { font-weight: bold; width: 50%; }
+                .info-table td.colon { width: 5%; text-align: center; }
+                
+                /* Layout 3 Tanda Tangan Kompak */
+                .signature-container { width: 100%; margin-top: 40px; display: flex; justify-content: space-between; font-size: 14px; }
+                .sig-box { width: 42%; text-align: center; }
+                .sig-space { height: 65px; }
+                .nama-tercetak { font-weight: bold; text-decoration: underline; }
+            </style>
+        </head>
+        <body>
+            <!-- Struktur Kop Surat Resmi -->
+            <div class="kop-container">
+                <img src="logo_boalemo.png.png" class="kop-logo" alt="Logo Kab Boalemo" onerror="console.log('Logo tidak ditemukan, pastikan logo.png ada di folder yang sama')">
+                <div class="kop-text">
+                    <div class="header-title">PEMERINTAH KABUPATEN BOALEMO</div>
+                    <div class="header-sub">PANITIA PELAKSANA ${judulUpper}</div>
+                    <div class="header-desc">Laporan Pelaksanaan Evaluasi Akademik Berbasis Komputer</div>
+                </div>
+            </div>
+            <hr class="double">
+            
+            <div class="text-center">
+                <div class="doc-title">BERITA ACARA PELAKSANAAN UJIAN</div>
+            </div>
+            
+            <p class="content-p">
+                ${teksHariIniBaku}, telah dilaksanakan Ujian berbasis Computer Based Test (CBT) untuk <b>${judulUpper}</b>. Berdasarkan data rekapitulasi real-time dari sistem, rincian aktivitas kelas dilaporkan sebagai berikut:
+            </p>
+            
+            <table class="info-table">
+                <tr>
+                    <td class="label">Total Peserta Terdaftar</td>
+                    <td class="colon">:</td>
+                    <td>${totalPeserta} Orang</td>
+                </tr>
+                <tr>
+                    <td class="label">Peserta Hadir / Login</td>
+                    <td class="colon">:</td>
+                    <td>${pesertaHadir} Orang</td>
+                </tr>
+                <tr>
+                    <td class="label">Peserta Selesai Mengerjakan</td>
+                    <td class="colon">:</td>
+                    <td>${pesertaSelesai} Orang</td>
+                </tr>
+                <tr>
+                    <td class="label">Status Kelas & Keamanan</td>
+                    <td class="colon">:</td>
+                    <td>Berjalan dengan Aman dan Lancar</td>
+                </tr>
+            </table>
+            
+            <p class="content-p">
+                Demikian berita acara ini dibuat dengan sebenar-benarnya secara otomatis oleh sistem pusat evaluasi untuk dipergunakan sebagaimana mestinya.
+            </p>
+            
+            <!-- Baris Pertama Tanda Tangan (Pengawas & Proktor) -->
+            <div class="signature-container">
+                <div class="sig-box">
+                    <div>Pengawas Ujian,</div>
+                    <div class="sig-space"></div>
+                    <div>( <span class="nama-tercetak">${namaPengawasInput}</span> )</div>
+                </div>
+                <div class="sig-box">
+                    <div>Admin / Proktor CBT,</div>
+                    <div class="sig-space"></div>
+                    <div>( <span class="nama-tercetak">${namaAdminProktor}</span> )</div>
+                </div>
+            </div>
+            
+            <!-- Baris Kedua Tanda Tangan Tengah (Kepala Desa) -->
+            <div class="signature-container" style="justify-content: center; margin-top: 25px;">
+                <div class="sig-box" style="width: 50%;">
+                    <div>Mengetahui,<br>Kepala Desa</div>
+                    <div class="sig-space"></div>
+                    <div>( <span class="nama-tercetak">${namaKadesInput}</span> )</div>
+                </div>
+            </div>
+        </body>
+        </html>
+        `);
+        doc.close();
+
+        setTimeout(() => {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        }, 200);
+    };
 
     function openEditSkorModal(row, nama, skorSekarang) {
         document.getElementById('formSkorRow').value = row;
@@ -683,78 +826,43 @@
         document.getElementById('formSkorNilai').value = skorSekarang;
         document.getElementById('skorModal').classList.remove('hidden');
     }
-
     function closeSkorModal() { document.getElementById('skorModal').classList.add('hidden'); }
-
     async function simpanUbahSkor() {
         const row = document.getElementById('formSkorRow').value;
         const skorBaru = document.getElementById('formSkorNilai').value;
         if(skorBaru === "") return alert("Skor nilai tidak boleh kosong!");
-        
         try {
-            let res = await fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'editSkor', rowNum: row, skor: skorBaru })
-            });
+            let res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'editSkor', rowNum: row, skor: skorBaru }) });
             let r = await res.json();
-            if(r.status === "success") {
-                alert("Skor nilai peserta berhasil diubah!");
-                closeSkorModal();
-                loadHasilUjianData();
-            }
-        } catch(e) { alert("Gagal memperbarui skor di server."); }
+            if(r.status === "success") { alert("Skor berhasil diubah!"); closeSkorModal(); loadHasilUjianData(); }
+        } catch(e) { alert("Gagal memperbarui skor."); }
     }
-
     async function hapusHasilUjian(rowNum) {
-        if(confirm("Apakah Anda yakin ingin menghapus arsip hasil ujian baris ini?")) {
+        if(confirm("Apakah Anda yakin ingin menghapus baris ini?")) {
             try {
-                let res = await fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'deleteHasil', rowNum: rowNum })
-                });
+                let res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteHasil', rowNum: rowNum }) });
                 let r = await res.json();
-                if(r.status === "success") {
-                    alert("Data hasil ujian berhasil dihapus.");
-                    loadHasilUjianData();
-                }
-            } catch(e) { alert("Gagal menghapus berkas hasil."); }
+                if(r.status === "success") { alert("Data berhasil dihapus."); loadHasilUjianData(); }
+            } catch(e) { alert("Gagal menghapus berkas."); }
         }
     }
-
     function unduhPDFHasilSingle(nama, skor, waktu) {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-        
-        doc.setFont("Helvetica", "bold");
-        doc.setFontSize(16);
+        const { jsPDF } = window.jspdf; const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        doc.setFont("Helvetica", "bold"); doc.setFontSize(16);
         doc.text("LAPORAN HASIL UJIAN SELEKSI", 105, 25, { align: "center" });
-        doc.setFontSize(12);
-        doc.text("SISTEM COMPUTER ASSISTED TEST (CBT)", 105, 32, { align: "center" });
-        
-        doc.setLineWidth(0.5);
-        doc.line(15, 38, 195, 38);
-        
-        doc.setFont("Helvetica", "normal");
-        doc.setFontSize(11);
+        doc.setFontSize(12); doc.text("SISTEM COMPUTER ASSISTED TEST (CBT)", 105, 32, { align: "center" });
+        doc.setLineWidth(0.5); doc.line(15, 38, 195, 38);
+        doc.setFont("Helvetica", "normal"); doc.setFontSize(11);
         doc.text("Berikut adalah rincian capaian nilai kompetensi peserta online:", 15, 50);
-        
         doc.text("Nama Lengkap", 15, 62); doc.text(`:  ${nama}`, 55, 62);
         doc.text("Tanggal Selesai", 15, 70); doc.text(`:  ${waktu}`, 55, 70);
         doc.text("Status Kelulusan", 15, 78); doc.text(":  TERSIMPAN DI DATABASE", 55, 78);
-        
-        doc.setFillColor(243, 244, 246);
-        doc.rect(15, 90, 180, 30, "F");
-        
-        doc.setFont("Helvetica", "bold");
-        doc.setFontSize(12);
+        doc.setFillColor(243, 244, 246); doc.rect(15, 90, 180, 30, "F");
+        doc.setFont("Helvetica", "bold"); doc.setFontSize(12);
         doc.text("SKOR AKHIR AKUMULASI", 105, 99, { align: "center" });
-        doc.setFontSize(32);
-        doc.text(String(skor), 105, 114, { align: "center" });
-        
-        doc.setFont("Helvetica", "italic");
-        doc.setFontSize(9);
-        doc.text("*Dokumen ini sah dikeluarkan secara otomatis oleh server CBT Perangkat Desa.", 15, 140);
-        
+        doc.setFontSize(32); doc.text(String(skor), 105, 114, { align: "center" });
+        doc.setFont("Helvetica", "italic"); doc.setFontSize(9);
+        doc.text("*Dokumen ini sah dikeluarkan secara otomatis oleh server CBT Pusat.", 15, 140);
         doc.save(`Hasil_CBT_${nama.replace(/\s+/g, '_')}.pdf`);
     }
 
@@ -830,7 +938,8 @@
         renderQuestion(); 
         renderNavGrid(); 
         simpanDrafUjianKeCloud(); // Otomatis mengirim draf ke Google Sheets cloud saat opsi diklik
-}
+    }
+    
     function toggleDoubtful() { 
         const chk = document.getElementById('chkRagu'); 
         chk.checked = !chk.checked; 
@@ -874,48 +983,45 @@
         });
     }
 
- // =========================================================================
-// LOGIKA DASHBOARD OPERATOR: MANAJEMEN DATA PESERTA
-// =========================================================================
-async function loadPesertaData() {
-    const body = document.getElementById('tblPesertaBody');
-    if(!body) return;
-    body.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Mengunduh data Google Sheet...</td></tr>";
-    
-    try {
-        let res = await fetch(`${API_URL}?action=getPeserta`);
-        let result = await res.json();
+    // =========================================================================
+    // LOGIKA DASHBOARD OPERATOR: MANAJEMEN DATA PESERTA
+    // =========================================================================
+    async function loadPesertaData() {
+        const body = document.getElementById('tblPesertaBody');
+        if(!body) return;
+        body.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Mengunduh data Google Sheet...</td></tr>";
         
-        if(result.status === "success") {
-            body.innerHTML = "";
-            result.data.forEach((p, idx) => {
-                let tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${idx + 1}</td>
-                    <td><b>${p.username}</b></td>
-                    <td><code>${p.password}</code></td>
-                    <td>${p.nama}</td>
-                    <td><span style="padding:4px 10px; border-radius:12px; font-size:0.8rem; font-weight:bold; background:${p.status==='Selesai'?'#bbf7d0; color:#166534;':p.status==='Aktif Mengerjakan'?'#fef08a; color:#a16207;':p.status==='Sudah Login'?'#bae6fd; color:#0369a1;':'#e2e8f0; color:#475569;'}">${p.status}</span></td>
-                    <td>
-                        <!-- TAMBAHAN: Tombol Cetak Kartu -->
-                        <button class="btn btn-sm" style="background:var(--success)" title="Cetak Kartu" onclick="cetakKartuUjian('${p.nama}', '${p.username}', '${p.password}')"><i class="fa-solid fa-print"></i></button>
-                        <!-- Tombol Edit & Hapus (Bawaan Anda) -->
-                         <button class="btn btn-sm" style="background:var(--warning)" onclick="openEditPesertaModal(${p.rowNum}, '${p.username}', '${p.password}', '${p.nama}', '${p.status}')"><i class="fa-solid fa-pen"></i></button>
-        		<button class="btn btn-sm" style="background:var(--danger)" onclick="hapusPeserta(${p.rowNum})"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                `;
-                body.appendChild(tr);
-            });
+        try {
+            let res = await fetch(`${API_URL}?action=getPeserta`);
+            let result = await res.json();
+            
+            if(result.status === "success") {
+                body.innerHTML = "";
+                result.data.forEach((p, idx) => {
+                    let tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${idx + 1}</td>
+                        <td><b>${p.username}</b></td>
+                        <td><code>${p.password}</code></td>
+                        <td>${p.nama}</td>
+                        <td><span style="padding:4px 10px; border-radius:12px; font-size:0.8rem; font-weight:bold; background:${p.status==='Selesai'?'#bbf7d0; color:#166534;':p.status==='Aktif Mengerjakan'?'#fef08a; color:#a16207;':p.status==='Sudah Login'?'#bae6fd; color:#0369a1;':'#e2e8f0; color:#475569;'}">${p.status}</span></td>
+                        <td>
+                            <!-- TAMBAHAN: Tombol Cetak Kartu -->
+                            <button class="btn btn-sm" style="background:var(--success)" title="Cetak Kartu" onclick="cetakKartuUjian('${p.nama}', '${p.username}', '${p.password}')"><i class="fa-solid fa-print"></i></button>
+                            <!-- Tombol Edit & Hapus (Bawaan Anda) -->
+                             <button class="btn btn-sm" style="background:var(--warning)" onclick="openEditPesertaModal(${p.rowNum}, '${p.username}', '${p.password}', '${p.nama}', '${p.status}')"><i class="fa-solid fa-pen"></i></button>
+                            <button class="btn btn-sm" style="background:var(--danger)" onclick="hapusPeserta(${p.rowNum})"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    `;
+                    body.appendChild(tr);
+                });
+            }
+        } catch(e) { 
+            body.innerHTML = "<tr><td colspan='6' style='text-align:center; color:red;'>Gagal memuat data.</td></tr>"; 
         }
-    } catch(e) { 
-        body.innerHTML = "<tr><td colspan='6' style='text-align:center; color:red;'>Gagal memuat data.</td></tr>"; 
     }
-}
 
-
-
-
-function openAddPesertaModal() {        
+    function openAddPesertaModal() {        
         document.getElementById('modalPesertaTitle').innerText = "Tambah Peserta Baru";        
         document.getElementById('formPesertaRow').value = ""; 
         document.getElementById('formPesertaUser').value = "";        
@@ -928,7 +1034,6 @@ function openAddPesertaModal() {
         document.getElementById('pesertaModal').classList.remove('hidden');    
     }
 
-    // Tambahkan parameter 'status' di akhir fungsi
     function openEditPesertaModal(row, user, pass, nama, status) {        
         document.getElementById('modalPesertaTitle').innerText = "Ubah Data Peserta";        
         document.getElementById('formPesertaRow').value = row; 
@@ -995,23 +1100,7 @@ function openAddPesertaModal() {
         if(!file) return;        
         const r = new FileReader();        
         r.onload = async function(e) {            
-            try {                                                                
-                let res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'importPesertaCsv', csvData: e.target.result }) });                
-                let result = await res.json(); 
-                if(result.status === "success") { alert(`Berhasil mengimpor ${result.total} peserta.`); loadPesertaData(); }            
-            } catch(err) { alert("Gagal."); }        
-        }; 
-        r.readAsText(file);    
-    }
-
-    
-
-    function prosesUnggahPesertaCsv() {        
-        const file = document.getElementById('filePesertaCsv').files[0]; 
-        if(!file) return;        
-        const r = new FileReader();        
-        r.onload = async function(e) {            
-            try {                                                
+            try {                                                                                
                 let res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'importPesertaCsv', csvData: e.target.result }) });                
                 let result = await res.json(); 
                 if(result.status === "success") { alert(`Berhasil mengimpor ${result.total} peserta.`); loadPesertaData(); }            
@@ -1042,6 +1131,33 @@ function openAddPesertaModal() {
         intervalDashboard = setInterval(muatStatistikDashboard, 15000); 
     }        
 
+    // [MODIFIKASI & PENYELARASAN LOKAL]: Memuat setting server + variabel Berita Acara lokal
+    async function loadSystemSettings() {
+        try {
+            let res = await fetch(`${API_URL}?action=getSettings`);
+            let settings = await res.json();
+            if(settings) {
+                if(document.getElementById('sysJudul')) document.getElementById('sysJudul').value = settings.judul || "";
+                if(document.getElementById('sysToken')) document.getElementById('sysToken').value = settings.token || "";
+                if(document.getElementById('sysDurasi')) document.getElementById('sysDurasi').value = settings.durasi || "";
+                if(document.getElementById('sysStatus')) document.getElementById('sysStatus').value = settings.aktif || settings.status || "";
+                if(document.getElementById('sysWaktuMulai')) document.getElementById('sysWaktuMulai').value = settings.waktuMulai || "";
+                if(document.getElementById('sysTampilkanSkor')) document.getElementById('sysTampilkanSkor').value = settings.tampilkanSkor || "Tidak";
+                
+                localStorage.setItem('judulUjian', settings.judul || "");
+            }
+        } catch(e) { console.error("Gagal memuat pengaturan database:", e); }
+
+        // Mengisi kolom input Pengawas & Proktor secara otomatis saat tab dibuka
+        if(document.getElementById('sysPengawas')) {
+            document.getElementById('sysPengawas').value = localStorage.getItem('namaPengawas') || "";
+        }
+        if(document.getElementById('sysProktor')) {
+            document.getElementById('sysProktor').value = localStorage.getItem('namaProktor') || "";
+        }
+    }
+
+    // [MODIFIKASI & DIINTEGRASIKAN]: Menyimpan konfigurasi cloud + lokal sekaligus
     async function saveSystemSettings() {        
         const judul = document.getElementById('sysJudul').value.trim(); 
         const token = document.getElementById('sysToken').value.trim().toUpperCase();        
@@ -1049,6 +1165,11 @@ function openAddPesertaModal() {
         const status = document.getElementById('sysStatus').value;        
         const waktuMulai = document.getElementById('sysWaktuMulai').value; 
         const tampilkanSkor = document.getElementById('sysTampilkanSkor').value;
+        
+        // [BARU] Menangkap input data Pengawas dan Proktor dari form
+        const pengawas = document.getElementById('sysPengawas') ? document.getElementById('sysPengawas').value.trim() : "";
+        const proktor = document.getElementById('sysProktor') ? document.getElementById('sysProktor').value.trim() : "";
+
         if(!judul || !token || !durasi) return alert("Kolom wajib diisi!");        
         try {            
             let response = await fetch(API_URL, { 
@@ -1056,7 +1177,14 @@ function openAddPesertaModal() {
                 body: JSON.stringify({ action: "saveSettings", judul: judul, token: token, durasi: durasi, status: status, waktuMulai: waktuMulai, tampilkanSkor: tampilkanSkor }) 
             });            
             let result = await response.json(); 
-            if(result.status === "success") { alert("Pengaturan Berhasil Disimpan!"); }        
+            if(result.status === "success") { 
+                // [BARU] Sinkronisasi instan ke penyimpanan internal untuk Berita Acara
+                localStorage.setItem('judulUjian', judul);
+                localStorage.setItem('namaPengawas', pengawas);
+                localStorage.setItem('namaProktor', proktor);
+
+                alert("Pengaturan Berhasil Disimpan!"); 
+            }        
         } catch(e) { alert("Gagal menyimpan."); }    
     }
 
@@ -1076,7 +1204,7 @@ function openAddPesertaModal() {
         if (!file) return alert("Pilih file CSV!");        
         const reader = new FileReader();        
         reader.onload = async function(e) {            
-            try {                                                
+            try {                                                                
                 let response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'importCsv', csvData: e.target.result }) });                
                 let result = await response.json(); 
                 if (result.status === "success") { alert(`Berhasil mengimpor ${result.total} soal.`); fileInput.value = ""; }            
@@ -1147,6 +1275,18 @@ function openAddPesertaModal() {
         loop();
     }
 
+
+
+
+
+
+
+
+
+
+
+
+
     // =========================================================================
     // ENGINE CETAK LAPORAN REKAPITULASI SELEKSI
     // =========================================================================
@@ -1157,10 +1297,13 @@ function openAddPesertaModal() {
             return;
         }
 
+        // Sinkronisasi Judul Ujian Aktif untuk Kop Laporan
+        let judulAktif = localStorage.getItem('judulUjian') || "UJIAN CBT";
+
         let printContent = `
         <html>
         <head>
-            <title>Rekapitulasi Hasil Ujian CBT</title>
+            <title>Rekapitulasi Hasil - ${judulAktif}</title>
             <style>
                 body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 40px; color: #333; line-height: 1.4; }
                 .kop-surat { text-align: center; margin-bottom: 25px; border-bottom: 3px double #333; padding-bottom: 10px; }
@@ -1181,7 +1324,7 @@ function openAddPesertaModal() {
         </head>
         <body>
             <div class="kop-surat">
-                <h2>LAPORAN REKAPITULASI HASIL UJIAN CBT</h2>
+                <h2>LAPORAN REKAPITULASI HASIL ${judulAktif.toUpperCase()}</h2>
                 <p>Dibuat Otomatis pada Tanggal: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
             </div>
             <table>
@@ -1236,236 +1379,230 @@ function openAddPesertaModal() {
     }
 
 
-// =========================================================================
-// ENGINE CETAK KARTU UJIAN PESERTA (SATUAN)
-// =========================================================================
-function cetakKartuUjian(nama, username, password) {
-    // Otomatis mengambil nilai dari input id="sysJudul"
-    let elemenJudul = document.getElementById('sysJudul');
-    let judulAktif = elemenJudul && elemenJudul.value.trim() !== "" ? elemenJudul.value : "KARTU PESERTA CBT";
-
-    let printContent = `
-    <html>
-    <head>
-        <title>Kartu Ujian - ${nama}</title>
-        <style>
-            body { font-family: 'Helvetica Neue', Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f3f4f6; }
-            .card { width: 320px; border: 2px solid #111; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-            .header { text-align: center; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 15px; }
-            .header h3 { margin: 0; font-size: 18px; text-transform: uppercase; }
-            .header p { margin: 5px 0 0 0; font-size: 12px; color: #111; font-weight: bold; text-transform: uppercase; }
-            .info { margin: 10px 0; font-size: 14px; line-height: 1.6; }
-            .info table { width: 100%; border-collapse: collapse; }
-            .info td { padding: 4px 0; }
-            .info td:first-child { font-weight: bold; width: 35%; }
-            .footer { text-align: center; margin-top: 15px; font-size: 11px; color: #666; border-top: 1px dashed #ccc; padding-top: 10px; }
-            @media print {
-                body { background-color: #fff; height: auto; align-items: flex-start; padding: 20px; }
-                .card { box-shadow: none; }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="card">
-            <div class="header">
-                <h3>KARTU PESERTA</h3>
-                <!-- Menampilkan judul ujian yang aktif di pengaturan secara otomatis -->
-                <p>${judulAktif}</p>
-            </div>
-            <div class="info">
-                <table>
-                    <tr><td>Nama</td><td>: ${nama}</td></tr>
-                    <tr><td>Username</td><td>: <b>${username}</b></td></tr>
-                    <tr><td>Password</td><td>: <code>${password}</code></td></tr>
-                </table>
-            </div>
-            <div class="footer">
-                Harap bawa kartu ini saat pelaksanaan ujian.<br>Jaga kerahasiaan username dan password Anda.
-            </div>
-        </div>
-    </body>
-    </html>
-    `;
-
-    const jendelaCetak = window.open("", "_blank");
-    jendelaCetak.document.write(printContent);
-    jendelaCetak.document.close();
-    
-    setTimeout(() => {
-        jendelaCetak.print();
-    }, 400);
-}
-
-
-
-// =========================================================================
-// ENGINE CETAK KARTU UJIAN MASAL (SEMUA PESERTA)
-// =========================================================================
-async function cetakKartuUjianMasal() {
-    try {
-        // Otomatis mengambil nilai dari input id="sysJudul"
+    // =========================================================================
+    // ENGINE CETAK KARTU UJIAN PESERTA (SATUAN)
+    // =========================================================================
+    function cetakKartuUjian(nama, username, password) {
         let elemenJudul = document.getElementById('sysJudul');
-        let judulAktif = elemenJudul && elemenJudul.value.trim() !== "" ? elemenJudul.value : "KARTU PESERTA CBT";
+        let judulAktif = elemenJudul && elemenJudul.value.trim() !== "" ? elemenJudul.value : (localStorage.getItem('judulUjian') || "KARTU PESERTA CBT");
 
-        // Mengambil seluruh data peserta dari Google Sheet
-        let res = await fetch(`${API_URL}?action=getPeserta`);
-        let result = await res.json();
-        
-        if(result.status === "success" && result.data.length > 0) {
-            let printContent = `
-            <html>
-            <head>
-                <title>Cetak Massal Kartu Ujian</title>
-                <style>
-                    body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; background-color: #fff; }
-                    .container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
-                    .card { width: 320px; border: 2px solid #111; padding: 20px; border-radius: 8px; box-sizing: border-box; page-break-inside: avoid; margin-bottom: 10px; }
-                    .header { text-align: center; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 15px; }
-                    .header h3 { margin: 0; font-size: 18px; text-transform: uppercase; }
-                    .header p { margin: 5px 0 0 0; font-size: 12px; color: #111; font-weight: bold; text-transform: uppercase; }
-                    .info { margin: 10px 0; font-size: 14px; line-height: 1.6; }
-                    .info table { width: 100%; border-collapse: collapse; }
-                    .info td { padding: 4px 0; }
-                    .info td:first-child { font-weight: bold; width: 35%; }
-                    .footer { text-align: center; margin-top: 15px; font-size: 11px; color: #666; border-top: 1px dashed #ccc; padding-top: 10px; }
-                    @media print { body { padding: 0; } }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-            `;
-
-            // Membuat kartu satu-per-satu untuk setiap peserta dalam database
-            result.data.forEach(p => {
-                printContent += `
-                    <div class="card">
-                        <div class="header">
-                            <h3>KARTU PESERTA</h3>
-                            <!-- Judul otomatis berubah mengikuti input sysJudul -->
-                            <p>${judulAktif}</p>
-                        </div>
-                        <div class="info">
-                            <table>
-                                <tr><td>Nama</td><td>: ${p.nama}</td></tr>
-                                <tr><td>Username</td><td>: <b>${p.username}</b></td></tr>
-                                <tr><td>Password</td><td>: <code>${p.password}</code></td></tr>
-                            </table>
-                        </div>
-                        <div class="footer">
-                            Harap bawa kartu ini saat pelaksanaan ujian.<br>Jaga kerahasiaan username dan password Anda.
-                        </div>
-                    </div>
-                `;
-            });
-
-            printContent += `
+        let printContent = `
+        <html>
+        <head>
+            <title>Kartu Ujian - ${nama}</title>
+            <style>
+                body { font-family: 'Helvetica Neue', Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f3f4f6; }
+                .card { width: 320px; border: 2px solid #111; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                .header { text-align: center; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 15px; }
+                .header h3 { margin: 0; font-size: 18px; text-transform: uppercase; }
+                .header p { margin: 5px 0 0 0; font-size: 12px; color: #111; font-weight: bold; text-transform: uppercase; }
+                .info { margin: 10px 0; font-size: 14px; line-height: 1.6; }
+                .info table { width: 100%; border-collapse: collapse; }
+                .info td { padding: 4px 0; }
+                .info td:first-child { font-weight: bold; width: 35%; }
+                .footer { text-align: center; margin-top: 15px; font-size: 11px; color: #666; border-top: 1px dashed #ccc; padding-top: 10px; }
+                @media print {
+                    body { background-color: #fff; height: auto; align-items: flex-start; padding: 20px; }
+                    .card { box-shadow: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div class="header">
+                    <h3>KARTU PESERTA</h3>
+                    <p>${judulAktif}</p>
                 </div>
-            </body>
-            </html>
-            `;
+                <div class="info">
+                    <table>
+                        <tr><td>Nama</td><td>: ${nama}</td></tr>
+                        <tr><td>Username</td><td>: <b>${username}</b></td></tr>
+                        <tr><td>Password</td><td>: <code>${password}</code></td></tr>
+                    </table>
+                </div>
+                <div class="footer">
+                    Harap bawa kartu ini saat pelaksanaan ujian.<br>Jaga kerahasiaan username dan password Anda.
+                </div>
+            </div>
+        </body>
+        </html>
+        `;
 
-            const jendelaCetak = window.open("", "_blank");
-            jendelaCetak.document.write(printContent);
-            jendelaCetak.document.close();
-            
-            setTimeout(() => {
-                jendelaCetak.print();
-            }, 800);
-
-        } else {
-            alert("Data peserta kosong atau gagal dimuat dari server.");
-        }
-    } catch (e) {
-        alert("Terjadi kesalahan saat mengambil data cetak massal.");
-        console.error(e);
+        const jendelaCetak = window.open("", "_blank");
+        jendelaCetak.document.write(printContent);
+        jendelaCetak.document.close();
+        
+        setTimeout(() => {
+            jendelaCetak.print();
+        }, 400);
     }
-}
 
 
+    // =========================================================================
+    // ENGINE CETAK KARTU UJIAN MASAL (SEMUA PESERTA)
+    // =========================================================================
+    async function cetakKartuUjianMasal() {
+        try {
+            let elemenJudul = document.getElementById('sysJudul');
+            let judulAktif = elemenJudul && elemenJudul.value.trim() !== "" ? elemenJudul.value : (localStorage.getItem('judulUjian') || "KARTU PESERTA CBT");
 
-// =========================================================================
-// ENGINE CETAK BERITA ACARA UJIAN
-// =========================================================================
-function cetakBeritaAcara() {
-    // Menarik data langsung dari elemen Dashboard buatan Anda
-    let totalPeserta = document.getElementById('statTotalPeserta') ? document.getElementById('statTotalPeserta').innerText : "0";
-    let pesertaLogin = document.getElementById('statPesertaLogin') ? document.getElementById('statPesertaLogin').innerText : "0";
-    let pesertaSelesai = document.getElementById('statPesertaSelesai') ? document.getElementById('statPesertaSelesai').innerText : "0";
-    
-    let tanggalStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            let res = await fetch(`${API_URL}?action=getPeserta`);
+            let result = await res.json();
+            
+            if(result.status === "success" && result.data.length > 0) {
+                let printContent = `
+                <html>
+                <head>
+                    <title>Cetak Massal Kartu Ujian</title>
+                    <style>
+                        body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; background-color: #fff; }
+                        .container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+                        .card { width: 320px; border: 2px solid #111; padding: 20px; border-radius: 8px; box-sizing: border-box; page-break-inside: avoid; margin-bottom: 10px; }
+                        .header { text-align: center; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 15px; }
+                        .header h3 { margin: 0; font-size: 18px; text-transform: uppercase; }
+                        .header p { margin: 5px 0 0 0; font-size: 12px; color: #111; font-weight: bold; text-transform: uppercase; }
+                        .info { margin: 10px 0; font-size: 14px; line-height: 1.6; }
+                        .info table { width: 100%; border-collapse: collapse; }
+                        .info td { padding: 4px 0; }
+                        .info td:first-child { font-weight: bold; width: 35%; }
+                        .footer { text-align: center; margin-top: 15px; font-size: 11px; color: #666; border-top: 1px dashed #ccc; padding-top: 10px; }
+                        @media print { body { padding: 0; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                `;
 
-    let printContent = `
-    <html>
-    <head>
-        <title>Berita Acara Ujian CBT</title>
-        <style>
-            body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 40px; color: #111; line-height: 1.6; }
-            .kop-surat { text-align: center; margin-bottom: 30px; border-bottom: 3px double #111; padding-bottom: 15px; }
-            .kop-surat h2 { margin: 0; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
-            .kop-surat p { margin: 5px 0 0 0; font-size: 14px; }
-            .judul { text-align: center; font-weight: bold; text-decoration: underline; font-size: 16px; margin-bottom: 20px; }
-            .isi { text-align: justify; font-size: 14px; margin-bottom: 30px; }
-            table.rincian { width: 80%; margin: 0 auto 30px auto; border-collapse: collapse; }
-            table.rincian td { padding: 8px; font-size: 14px; }
-            table.rincian td:first-child { width: 40%; font-weight: bold; }
-            .ttd-container { display: flex; justify-content: space-between; margin-top: 50px; }
-            .box-ttd { text-align: center; width: 250px; font-size: 14px; }
-            .space-ttd { height: 80px; }
-            @media print {
-                @page { size: A4; margin: 2cm; }
-                body { margin: 0; }
+                result.data.forEach(p => {
+                    printContent += `
+                        <div class="card">
+                            <div class="header">
+                                <h3>KARTU PESERTA</h3>
+                                <p>${judulAktif}</p>
+                            </div>
+                            <div class="info">
+                                <table>
+                                    <tr><td>Nama</td><td>: ${p.nama}</td></tr>
+                                    <tr><td>Username</td><td>: <b>${p.username}</b></td></tr>
+                                    <tr><td>Password</td><td>: <code>${p.password}</code></td></tr>
+                                </table>
+                            </div>
+                            <div class="footer">
+                                Harap bawa kartu ini saat pelaksanaan ujian.<br>Jaga kerahasiaan username dan password Anda.
+                            </div>
+                        </div>
+                    `;
+                });
+
+                printContent += `
+                    </div>
+                </body>
+                </html>
+                `;
+
+                const jendelaCetak = window.open("", "_blank");
+                jendelaCetak.document.write(printContent);
+                jendelaCetak.document.close();
+                
+                setTimeout(() => {
+                    jendelaCetak.print();
+                }, 800);
+
+            } else {
+                alert("Data peserta kosong atau gagal dimuat dari server.");
             }
-        </style>
-    </head>
-    <body>
-        <div class="kop-surat">
-            <h2>PANITIA PELAKSANA UJIAN CBT</h2>
-            <p>Laporan Pelaksanaan Evaluasi Akademik Berbasis Komputer</p>
-        </div>
+        } catch (e) {
+            alert("Terjadi kesalahan saat mengambil data cetak massal.");
+            console.error(e);
+        }
+    }
+
+
+    // =========================================================================
+    // [OPTIMIZED] ENGINE CETAK BERITA ACARA UJIAN DENGAN SINKRONISASI LOKAL
+    // =========================================================================
+    function cetakBeritaAcara() {
+        let totalPeserta = document.getElementById('statTotalPeserta') ? document.getElementById('statTotalPeserta').innerText : "0";
+        let pesertaLogin = document.getElementById('statPesertaLogin') ? document.getElementById('statPesertaLogin').innerText : "0";
+        let pesertaSelesai = document.getElementById('statPesertaSelesai') ? document.getElementById('statPesertaSelesai').innerText : "0";
         
-        <div class="judul">BERITA ACARA PELAKSANAAN UJIAN</div>
+        // [BARU]: Sinkronisasi data dinamis dari pengelolaan internal lokal
+        let judulAktif = localStorage.getItem('judulUjian') || "UJIAN CBT";
+        let namaPengawas = localStorage.getItem('namaPengawas') || "_______________________";
+        let namaProktor = localStorage.getItem('namaProktor') || "_______________________";
+
+        let tanggalStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        let printContent = `
+        <html>
+        <head>
+            <title>Berita Acara - ${judulAktif}</title>
+            <style>
+                body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 40px; color: #111; line-height: 1.6; }
+                .kop-surat { text-align: center; margin-bottom: 30px; border-bottom: 3px double #111; padding-bottom: 15px; }
+                .kop-surat h2 { margin: 0; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
+                .kop-surat p { margin: 5px 0 0 0; font-size: 14px; }
+                .judul { text-align: center; font-weight: bold; text-decoration: underline; font-size: 16px; margin-bottom: 20px; }
+                .isi { text-align: justify; font-size: 14px; margin-bottom: 30px; }
+                table.rincian { width: 80%; margin: 0 auto 30px auto; border-collapse: collapse; }
+                table.rincian td { padding: 8px; font-size: 14px; }
+                table.rincian td:first-child { width: 40%; font-weight: bold; }
+                .ttd-container { display: flex; justify-content: space-between; margin-top: 50px; }
+                .box-ttd { text-align: center; width: 250px; font-size: 14px; }
+                .space-ttd { height: 80px; }
+                @media print {
+                    @page { size: A4; margin: 2cm; }
+                    body { margin: 0; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="kop-surat">
+                <h2>PANITIA PELAKSANA ${judulAktif.toUpperCase()}</h2>
+                <p>Laporan Pelaksanaan Evaluasi Akademik Berbasis Komputer</p>
+            </div>
+            
+            <div class="judul">BERITA ACARA PELAKSANAAN UJIAN</div>
+            
+            <div class="isi">
+                <p>Pada hari ini, <b>${tanggalStr}</b>, telah dilaksanakan Ujian berbasis Computer Based Test (CBT) untuk <b>${judulAktif}</b>. Berdasarkan data rekapitulasi real-time dari sistem, rincian aktivitas kelas dilaporkan sebagai berikut:</p>
+            </div>
+
+            <table class="rincian">
+                <tr><td>Total Peserta Terdaftar</td><td>: ${totalPeserta} Orang</td></tr>
+                <tr><td>Peserta Hadir / Login</td><td>: ${pesertaLogin} Orang</td></tr>
+                <tr><td>Peserta Selesai Mengerjakan</td><td>: ${pesertaSelesai} Orang</td></tr>
+                <tr><td>Status Kelas & Keamanan</td><td>: Berjalan dengan Aman dan Lancar</td></tr>
+            </table>
+
+            <div class="isi">
+                <p>Demikian berita acara ini dibuat dengan sebenar-benarnya secara otomatis oleh sistem pusat evaluasi untuk dipergunakan sebagaimana mestinya.</p>
+            </div>
+
+            <div class="ttd-container">
+                <div class="box-ttd">
+                    <p>Pengawas Ujian,</p>
+                    <div class="space-ttd"></div>
+                    <p style="font-weight: bold; text-decoration: underline;">( ${namaPengawas} )</p>
+                </div>
+                <div class="box-ttd">
+                    <p>Admin / Proktor CBT,</p>
+                    <div class="space-ttd"></div>
+                    <p style="font-weight: bold; text-decoration: underline;">( ${namaProktor} )</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        `;
+
+        const jendelaCetak = window.open("", "_blank");
+        jendelaCetak.document.write(printContent);
+        jendelaCetak.document.close();
         
-        <div class="isi">
-            <p>Pada hari ini, <b>${tanggalStr}</b>, telah dilaksanakan Ujian berbasis Computer Based Test (CBT). Berdasarkan data yang tercatat di dalam sistem, berikut adalah rincian pelaksanaan ujian tersebut:</p>
-        </div>
-
-        <table class="rincian">
-            <tr><td>Total Peserta Terdaftar</td><td>: ${totalPeserta} Orang</td></tr>
-            <tr><td>Peserta Hadir / Login</td><td>: ${pesertaLogin} Orang</td></tr>
-            <tr><td>Peserta Selesai Mengerjakan</td><td>: ${pesertaSelesai} Orang</td></tr>
-            <tr><td>Status Pelaksanaan</td><td>: Berjalan dengan Aman dan Lancar</td></tr>
-        </table>
-
-        <div class="isi">
-            <p>Demikian berita acara ini dibuat dengan sebenar-benarnya (Auto-generated by System) untuk dapat dipergunakan sebagaimana mestinya.</p>
-        </div>
-
-        <div class="ttd-container">
-            <div class="box-ttd">
-                <p>Pengawas Ujian,</p>
-                <div class="space-ttd"></div>
-                <p>( _______________________ )</p>
-            </div>
-            <div class="box-ttd">
-                <p>Admin / Proktor CBT,</p>
-                <div class="space-ttd"></div>
-                <p>( _______________________ )</p>
-            </div>
-        </div>
-    </body>
-    </html>
-    `;
-
-    const jendelaCetak = window.open("", "_blank");
-    jendelaCetak.document.write(printContent);
-    jendelaCetak.document.close();
-    
-    // Format Timeout persis seperti fungsi Anda sebelumnya
-    setTimeout(() => {
-        jendelaCetak.print();
-    }, 400);
-}
-
+        setTimeout(() => {
+            jendelaCetak.print();
+        }, 400);
+    }
 
 
     // =========================================================================
@@ -1493,114 +1630,99 @@ function cetakBeritaAcara() {
     }
 
 
-// =========================================================================
-// FUNGSI TOGGLE LIHAT / SEMBUNYIKAN PASSWORD LOGIN
-// =========================================================================
-function togglePasswordVisibility() {
-    const passwordInput = document.getElementById('password');
-    const toggleIcon = document.getElementById('togglePasswordIcon');
-    
-    // Jika tipenya password, ubah ke text (lihat) dan ganti ikon jadi mata dicoret
-    if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        toggleIcon.classList.remove('fa-eye');
-        toggleIcon.classList.add('fa-eye-slash');
-    } else {
-        // Jika tipenya text, kembalikan ke password (sembunyi) dan ganti ikon ke mata normal
-        passwordInput.type = 'password';
-        toggleIcon.classList.remove('fa-eye-slash');
-        toggleIcon.classList.add('fa-eye');
-    }
-}
-
-// =========================================================================
-// SISTEM DETEKSI INTERNET MATI / MATI LISTRIK (OFFLINE DETECTOR)
-// =========================================================================
-
-// 1. Alert Otomatis saat Internet Tiba-tiba Putus (Misal Router Mati Lampu)
-window.addEventListener('offline', function() {
-    alert("⚠️ KONEKSI INTERNET TERPUTUS!\n\nMohon segera melapor ke Pengawas/Proktor ruangan. Jangan me-refresh halaman agar jawaban Anda tidak hilang!");
-});
-
-// 2. Alert Otomatis saat Internet Tersambung Kembali
-window.addEventListener('online', function() {
-    alert("✅ KONEKSI TERHUBUNG KEMBALI!\n\nSilakan lanjutkan pengisian soal ujian Anda.");
-});
-
-// 3. Fungsi Pembatas untuk Tombol Navigasi Soal
-function periksaKoneksiSebelumAksi() {
-    if (!navigator.onLine) {
-        alert("⚠️ JAWABAN TIDAK DAPAT DISIMPAN!\n\nKoneksi internet Anda sedang terputus. Silakan hubungi proktor untuk memeriksa jaringan sebelum menekan tombol navigasi.");
-        return false; // Membatalkan perintah selanjutnya
-    }
-    return true; // Koneksi aman, izinkan aksi lanjut
-}
-
-
-// =========================================================================
-// SISTEM ANTI-NYONTEK (YANG SUDAH DIPERBAIKI)
-// =========================================================================
-let jumlahPelanggaran = 0;
-const MAX_PELANGGARAN = 3;
-let statusUjianSelesai = false; 
-
-// 1. TAMBAHKAN SAKLAR INI: Default false agar tidak aktif di halaman login/admin
-let ujianSedangBerjalan = false; 
-
-document.addEventListener('visibilitychange', function() {
-    // KUNCINYA DI SINI: Skrip hanya mendeteksi jika 'ujianSedangBerjalan' sudah bernilai TRUE
-    if (document.hidden && ujianSedangBerjalan && !statusUjianSelesai) {
-        jumlahPelanggaran++;
+    // =========================================================================
+    // FUNGSI TOGGLE LIHAT / SEMBUNYIKAN PASSWORD LOGIN
+    // =========================================================================
+    function togglePasswordVisibility() {
+        const passwordInput = document.getElementById('password');
+        const toggleIcon = document.getElementById('togglePasswordIcon');
         
-        if (jumlahPelanggaran < MAX_PELANGGARAN) {
-            alert(`⚠️ PERINGATAN PELANGGARAN (${jumlahPelanggaran}/${MAX_PELANGGARAN})\n\nAnda terdeteksi meninggalkan halaman ujian!\nDilarang membuka tab lain, browsing, atau membuka aplikasi lain.\n\nJika Anda melanggar ${MAX_PELANGGARAN} kali, ujian akan DIHENTIKAN OTOMATIS!`);
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleIcon.classList.remove('fa-eye');
+            toggleIcon.classList.add('fa-eye-slash');
         } else {
-            statusUjianSelesai = true;
-            alert(`❌ ANDA DIDISKUALIFIKASI!\n\nAnda telah melakukan pelanggaran sebanyak 3 kali dengan membuka halaman lain.\nUjian dihentikan otomatis dan hasil Anda langsung dikirim ke server.`);
+            passwordInput.type = 'password';
+            toggleIcon.classList.remove('fa-eye-slash');
+            toggleIcon.classList.add('fa-eye');
+        }
+    }
+
+
+    // =========================================================================
+    // SISTEM DETEKSI INTERNET MATI / MATI LISTRIK (OFFLINE DETECTOR)
+    // =========================================================================
+    window.addEventListener('offline', function() {
+        alert("⚠️ KONEKSI INTERNET TERPUTUS!\n\nMohon segera melapor ke Pengawas/Proktor ruangan. Jangan me-refresh halaman agar jawaban Anda tidak hilang!");
+    });
+
+    window.addEventListener('online', function() {
+        alert("✅ KONEKSI TERHUBUNG KEMBALI!\n\nSilakan lanjutkan pengisian soal ujian Anda.");
+    });
+
+    function periksaKoneksiSebelumAksi() {
+        if (!navigator.onLine) {
+            alert("⚠️ JAWABAN TIDAK DAPAT DISIMPAN!\n\nKoneksi internet Anda sedang terputus. Silakan hubungi proktor untuk memeriksa jaringan sebelum menekan tombol navigasi.");
+            return false; 
+        }
+        return true; 
+    }
+
+
+    // =========================================================================
+    // SISTEM ANTI-NYONTEK (YANG SUDAH DIPERBAIKI)
+    // =========================================================================
+    let jumlahPelanggaran = 0;
+    const MAX_PELANGGARAN = 3;
+    let statusUjianSelesai = false; 
+    let ujianSedangBerjalan = false; 
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden && ujianSedangBerjalan && !statusUjianSelesai) {
+            jumlahPelanggaran++;
             
-            paksaSelesaiUjianKarenaCurang();
+            if (jumlahPelanggaran < MAX_PELANGGARAN) {
+                alert(`⚠️ PERINGATAN PELANGGARAN (${jumlahPelanggaran}/${MAX_PELANGGARAN})\n\nAnda terdeteksi meninggalkan halaman ujian!\nDilarang membuka tab lain, browsing, atau membuka aplikasi lain.\n\nJika Anda melanggar ${MAX_PELANGGARAN} kali, ujian akan DIHENTIKAN OTOMATIS!`);
+            } else {
+                statusUjianSelesai = true;
+                alert(`❌ ANDA DIDISKUALIFIKASI!\n\nAnda telah melakukan pelanggaran sebanyak 3 kali dengan membuka halaman lain.\nUjian dihentikan otomatis dan hasil Anda langsung dikirim ke server.`);
+                
+                paksaSelesaiUjianKarenaCurang();
+            }
+        }
+    });
+
+
+    // =========================================================================
+    // FUNGSI KHUSUS MEMPROSES PESERTA YANG CURANG (VERSI GABUNGAN AMAN)
+    // =========================================================================
+    async function paksaSelesaiUjianKarenaCurang() {
+        try {
+            statusUjianSelesai = true; 
+            ujianSedangBerjalan = false; 
+
+            let NIK = (typeof appState !== 'undefined' && appState.username) ? appState.username : ''; 
+            
+            if (!NIK && document.getElementById('usernameInput')) {
+                NIK = document.getElementById('usernameInput').value;
+            }
+
+            const statusSanksi = "Selesai (Didiskualifikasi: Pelanggaran)"; 
+
+            await fetch(`${API_URL}?action=updateStatusCurang&username=${encodeURIComponent(NIK)}&keterangan=${encodeURIComponent(statusSanksi)}`);
+
+            if (typeof submitUjianManual === 'function') {
+                await submitUjianManual(); 
+            } else {
+                alert("Sesi ujian Anda telah dibekukan oleh sistem.");
+                location.reload(); 
+            }
+        } catch (e) {
+            console.error("Gagal mengirim status pelanggaran:", e);
+            alert("Koneksi tidak stabil. Sesi ujian ditutup.");
+            location.reload();
         }
     }
-});
-
-// =========================================================================
-// FUNGSI KHUSUS MEMPROSES PESERTA YANG CURANG (VERSI GABUNGAN AMAN)
-// =========================================================================
-async function paksaSelesaiUjianKarenaCurang() {
-    try {
-        // 1. Matikan saklar deteksi agar tidak memicu alert berulang-ulang
-        statusUjianSelesai = true; 
-        ujianSedangBerjalan = false; 
-
-        // 2. Ambil NIK/Username dari appState (paling akurat saat ujian)
-        let NIK = (typeof appState !== 'undefined' && appState.username) ? appState.username : ''; 
-        
-        // Cadangan: Jika appState kosong, coba ambil dari elemen input login
-        if (!NIK && document.getElementById('usernameInput')) {
-            NIK = document.getElementById('usernameInput').value;
-        }
-
-        // 3. Set teks status sesuai request: Rapi di Kolom D & memicu sistem kunci di backend
-        const statusSanksi = "Selesai (Didiskualifikasi: Pelanggaran)"; 
-
-        // 4. Kirim status pelanggaran ke Google Sheet
-        await fetch(`${API_URL}?action=updateStatusCurang&username=${encodeURIComponent(NIK)}&keterangan=${encodeURIComponent(statusSanksi)}`);
-
-        // 5. Panggil fungsi simpan/submit bawaan untuk rekam nilai terakhir ke sheet 'Hasil'
-        if (typeof submitUjianManual === 'function') {
-            await submitUjianManual(); 
-        } else {
-            // Jika fungsi submit tidak merespon, langsung tendang ke halaman depan
-            alert("Sesi ujian Anda telah dibekukan oleh sistem.");
-            location.reload(); 
-        }
-    } catch (e) {
-        console.error("Gagal mengirim status pelanggaran:", e);
-        // Antisipasi jika siswa sengaja mematikan internet saat melanggar, tetap tendang keluar
-        alert("Koneksi tidak stabil. Sesi ujian ditutup.");
-        location.reload();
-    }
-}
 </script>
 </body>
 </html>
