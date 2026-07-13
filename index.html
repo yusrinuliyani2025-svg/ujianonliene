@@ -267,6 +267,8 @@
                     <li id="menu-set" onclick="switchAdminTab('set')"><i class="fa-solid fa-gear"></i> Pengaturan & Token</li>
                     <!-- MENU HASIL UJIAN BARU -->
                     <li id="menu-hasil" onclick="switchAdminTab('hasil')"><i class="fa-solid fa-square-poll-vertical"></i> Hasil Ujian</li>
+
+<li id="menu-live-skor" onclick="switchAdminTab('live-skor')" style="cursor: pointer;"><i class="fa-solid fa-chart-column text-emerald-500"></i> Live Skor Real-Time</li>
                 </ul>
             </nav>
              
@@ -309,6 +311,11 @@
             <i class="fa-solid fa-book-open" style="font-size: 2rem; color: #334155; opacity: 0.25;"></i>
         </div>
     </div>
+
+
+
+
+
 
     <!-- ================= PANEL BARU: UNTUK MENGISI AREA KOSONG ================= -->
     <div style="display: flex; gap: 20px; margin-top: 25px; flex-wrap: wrap;">
@@ -441,15 +448,18 @@
 
     <div class="table-responsive">
         <table>
-            <thead>
-                <tr>
-                    <th style="width: 5%;">No</th>
-                    <th>Nama Peserta</th>
-                    <th style="width: 15%;">Skor</th>
-                    <th style="width: 25%;">Tanggal & Waktu Selesai</th>
-                    <th style="width: 20%;">Aksi</th>
-                </tr>
-            </thead>
+           <thead>
+    <tr>
+        <th style="width: 5%;">No</th>
+        <th style="width: 15%;">NIK</th> <!-- TAMBAHKAN KOLOM INI -->
+        <th>Nama Peserta</th>
+        <th style="width: 10%;">Skor</th>
+        <th style="width: 25%;">Tanggal & Waktu Selesai</th>
+        <th style="width: 15%;">Aksi</th>
+    </tr>
+</thead>
+
+
             <tbody id="tblHasilBody">
                 <tr><td colspan="5" style="text-align:center;">Memuat rekapitulasi nilai...</td></tr>
             </tbody>
@@ -504,7 +514,6 @@
         </div>
     </div>
 
-    
 
 <!-- ==================== LOGIKA CORE JAVASCRIPT & REKAP BERITA ACARA ==================== -->
 <script>
@@ -733,44 +742,69 @@
         if(tabName === 'hasil') loadHasilUjianData();     
     }
 
-    async function loadHasilUjianData() {
-        const body = document.getElementById('tblHasilBody');
-        if(!body) return;
-        body.innerHTML = "<tr><td colspan='5' style='text-align:center;'>Mengambil data kelulusan dari Google Sheet...</td></tr>";
-        try {
-            await sinkronisasiCachePeserta();
-            let res = await fetch(`${API_URL}?action=getHasil`);
-            let result = await res.json();
-            if(result.status === "success") {
-                window.listHasilGlobal = result.data; 
-                body.innerHTML = "";
-                if(result.data.length === 0) {
-                    body.innerHTML = "<tr><td colspan='5' style='text-align:center;'>Belum ada peserta yang menyelesaikan ujian.</td></tr>";
-                    return;
-                }
-                result.data.forEach((h, idx) => {
-                    let namaTampil = mapPesertaNama[h.username] || `Tidak Diketahui (${h.username})`;
-                    let tanggalTampil = h.timestamp ? h.timestamp.split('T')[0] : '-';
-                    let tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${idx + 1}</td>
-                        <td><b>${namaTampil}</b></td>
-                        <td><span style="font-weight:bold; color:var(--primary); font-size:1.1rem;">${h.skor}</span></td>
-                        <td>${tanggalTampil}</td>
-                        <td>
-                            <button class="btn btn-sm" style="background: var(--warning);" onclick="openEditSkorModal(${h.rowNum}, '${namaTampil}', ${h.skor})"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
-                            <button class="btn btn-sm" style="background: var(--danger);" onclick="hapusHasilUjian(${h.rowNum})"><i class="fa-solid fa-trash"></i> Hapus</button>
-                            <button class="btn btn-sm" style="background: #0284c7;" onclick="unduhPDFHasilSingle('${namaTampil}', '${h.skor}', '${tanggalTampil}')"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                        </td>
-                    `;
-                    body.appendChild(tr);
-                });
-            } else { body.innerHTML = "<tr><td colspan='5' style='text-align:center; color:red;'>Gagal memuat rekap tab hasil.</td></tr>"; }
-        } catch(e) { body.innerHTML = "<tr><td colspan='5' style='text-align:center; color:red;'>Kesalahan transmisi data hasil.</td></tr>"; }
-    }
+   async function loadHasilUjianData() {
+    const body = document.getElementById('tblHasilBody');
+    if(!body) return;
+    
+    body.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Mengambil data...</td></tr>";
+    
+    try {
+        await sinkronisasiCachePeserta();
+        let res = await fetch(`${API_URL}?action=getHasil`);
+        let result = await res.json();
+        
+        if(result.status === "success") {
+            window.listHasilGlobal = result.data; 
+            body.innerHTML = "";
+            
+            if(result.data.length === 0) {
+                body.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Belum ada data.</td></tr>";
+                return;
+            }
 
-    // =========================================================================================
-    // UPDATE ENGINE CETAK: FITUR KOP LOGO DAN 3 PENANDATANGAN (PENGAWAS, PROKTOR, KEPALA DESA)
+            result.data.forEach((h, idx) => {
+                // Pastikan namaTampil cuma ada SATU di sini
+                let namaTampil = mapPesertaNama[h.username] || `Tidak Diketahui (${h.username})`;
+                
+                // Ambil timestamp dan format agar jam-nya muncul
+                let waktuTampil = h.timestamp ? h.timestamp.toString().replace('T', ' ').split('.')[0] : '-';
+                
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${idx + 1}</td>
+                    <td>${h.username}</td>
+                    <td><b>${namaTampil}</b></td>
+                    <td><span style="font-weight:bold; color:var(--primary); font-size:1.1rem;">${h.skor}</span></td>
+                    <td>${waktuTampil}</td>
+                    <td>
+                        <button class="btn btn-sm" style="background: var(--warning);" onclick="openEditSkorModal(${h.rowNum}, '${namaTampil}', ${h.skor})"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+                        <button class="btn btn-sm" style="background: var(--danger);" onclick="hapusHasilUjian(${h.rowNum})"><i class="fa-solid fa-trash"></i> Hapus</button>
+                        <button class="btn btn-sm" style="background: #0284c7;" onclick="unduhPDFHasilSingle('${namaTampil}', '${h.skor}', '${waktuTampil}')"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+    } catch(e) { 
+        console.error(e);
+        body.innerHTML = "<tr><td colspan='6' style='text-align:center; color:red;'>Gagal memuat data.</td></tr>"; 
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+   // =========================================================================================
+    // UPDATE ENGINE CETAK: FITUR KOP LOGO DAN 3 PENANDATANGAN (KETUA PANITIA, PROKTOR, KEPALA DESA)
     // =========================================================================================
     window.cetakBeritaAcara = function() {
         const judul = localStorage.getItem('judulUjian') || judulUjianAktif || "Ujian Online";
@@ -787,7 +821,7 @@
         if (teksHariIniBaku === null) return;
         if (teksHariIniBaku.trim() === "") teksHariIniBaku = defaultKalimatHari;
 
-        let namaPengawasInput = prompt("Masukkan Nama Lengkap Pengawas Ujian:", "");
+        let namaPengawasInput = prompt("Masukkan Nama Lengkap Ketua Panitia:", "");
         if (namaPengawasInput === null) return;
         if (namaPengawasInput.trim() === "") namaPengawasInput = "___________________________";
 
@@ -863,7 +897,6 @@
                 <div class="kop-text">
                     <div class="header-title">PEMERINTAH KABUPATEN BOALEMO</div>
                     <div class="header-sub">PANITIA PELAKSANA ${judulUpper}</div>
-                    <div class="header-desc">Laporan Pelaksanaan Evaluasi Akademik Berbasis Komputer</div>
                 </div>
             </div>
             <hr class="double">
@@ -903,10 +936,10 @@
                 Demikian berita acara ini dibuat dengan sebenar-benarnya secara otomatis oleh sistem pusat evaluasi untuk dipergunakan sebagaimana mestinya.
             </p>
             
-            <!-- Baris Pertama Tanda Tangan (Pengawas & Proktor) -->
+            <!-- Baris Pertama Tanda Tangan (Ketua Panitia & Proktor) -->
             <div class="signature-container">
                 <div class="sig-box">
-                    <div>Pengawas Ujian,</div>
+                    <div>Ketua Panitia,</div>
                     <div class="sig-space"></div>
                     <div>( <span class="nama-tercetak">${namaPengawasInput}</span> )</div>
                 </div>
@@ -935,6 +968,7 @@
             iframe.contentWindow.print();
         }, 200);
     };
+
 
     function openEditSkorModal(row, nama, skorSekarang) {
         document.getElementById('formSkorRow').value = row;
@@ -981,12 +1015,6 @@
         doc.text("*Dokumen ini sah dikeluarkan secara otomatis oleh server CBT Pusat.", 15, 140);
         doc.save(`Hasil_CBT_${nama.replace(/\s+/g, '_')}.pdf`);
     }
-
-
-
-
-
-
 
 
 // =========================================================================
@@ -1392,107 +1420,125 @@
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
     // =========================================================================
     // ENGINE CETAK LAPORAN REKAPITULASI SELEKSI
     // =========================================================================
     function cetakLaporanSemua() {
-        const rows = document.querySelectorAll("#tblHasilBody tr");
-        if (rows.length === 0 || rows[0].innerText.includes("Memuat") || rows[0].cells.length < 4) {
-            alert("Tidak ada data rekapitulasi hasil yang tersedia untuk dicetak!");
-            return;
-        }
+    // 1. Pop-up untuk input nama
+    let namaPengawas = prompt("Masukkan Nama Lengkap Admin / Proktor:");
 
-        // Sinkronisasi Judul Ujian Aktif untuk Kop Laporan
-        let judulAktif = localStorage.getItem('judulUjian') || "UJIAN CBT";
+    // Validasi: Jika di-cancel atau dikosongkan, batalkan proses
+    if (namaPengawas === null || namaPengawas.trim() === "") {
+        alert("Pencetakan dibatalkan.");
+        return;
+    }
 
-        let printContent = `
-        <html>
-        <head>
-            <title>Rekapitulasi Hasil - ${judulAktif}</title>
-            <style>
-                body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 40px; color: #333; line-height: 1.4; }
-                .kop-surat { text-align: center; margin-bottom: 25px; border-bottom: 3px double #333; padding-bottom: 10px; }
-                .kop-surat h2 { margin: 0; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
-                .kop-surat p { margin: 5px 0 0 0; font-size: 13px; color: #666; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #111; padding: 10px 12px; font-size: 13px; text-align: left; }
-                th { background-color: #f3f4f6; font-weight: bold; text-align: center; text-transform: uppercase; font-size: 12px; }
-                .text-center { text-align: center; }
-                .skor-style { font-weight: bold; color: #1d4ed8; text-align: center; font-size: 14px; }
-                .ttd-container { margin-top: 50px; float: right; text-align: center; font-size: 13px; width: 250px; }
-                .space-ttd { height: 75px; }
-                @media print {
-                    @page { size: A4; margin: 1.5cm; }
-                    body { margin: 0; }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="kop-surat">
-                <h2>LAPORAN REKAPITULASI HASIL ${judulAktif.toUpperCase()}</h2>
-                <p>Dibuat Otomatis pada Tanggal: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 7%;">No</th>
-                        <th>Nama Peserta</th>
-                        <th style="width: 15%;">Skor / Nilai</th>
-                        <th style="width: 30%;">Tanggal & Waktu Selesai</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
+    const rows = document.querySelectorAll("#tblHasilBody tr");
+    // Cek apakah ada data (Memuat... akan diabaikan jika panjang baris < 1 atau teksnya memuat 'Memuat')
+    if (rows.length === 0 || (rows[0].innerText.includes("Memuat") && rows.length === 1)) {
+        alert("Tidak ada data rekapitulasi hasil yang tersedia untuk dicetak!");
+        return;
+    }
 
-        rows.forEach((row, index) => {
-            let no = index + 1;
-            let nama = row.cells[1] ? row.cells[1].innerText : "-";
-            let skor = row.cells[2] ? row.cells[2].innerText : "0";
-            let waktu = row.cells[3] ? row.cells[3].innerText : "-";
+    // Sinkronisasi Judul Ujian Aktif
+    let judulAktif = localStorage.getItem('judulUjian') || "UJIAN CBT";
 
-            printContent += `
+    let printContent = `
+    <html>
+    <head>
+        <title>Rekapitulasi Hasil - ${judulAktif}</title>
+        <style>
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 40px; color: #333; line-height: 1.4; }
+            .kop-surat { text-align: center; margin-bottom: 25px; border-bottom: 3px double #333; padding-bottom: 10px; }
+            .kop-surat h2 { margin: 0; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
+            .kop-surat p { margin: 5px 0 0 0; font-size: 13px; color: #666; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            th, td { border: 1px solid #111; padding: 10px 12px; font-size: 13px; text-align: left; }
+            th { background-color: #f3f4f6; font-weight: bold; text-align: center; text-transform: uppercase; font-size: 12px; }
+            .text-center { text-align: center; }
+            .skor-style { font-weight: bold; color: #1d4ed8; text-align: center; font-size: 14px; }
+            .ttd-container { margin-top: 50px; float: right; text-align: center; font-size: 13px; width: 300px; }
+            .space-ttd { height: 75px; }
+            @media print {
+                @page { size: A4; margin: 1.5cm; }
+                body { margin: 0; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="kop-surat">
+            <h2>LAPORAN REKAPITULASI HASIL ${judulAktif.toUpperCase()}</h2>
+            <p>Dibuat Otomatis pada Tanggal: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        </div>
+        <table>
+            <thead>
                 <tr>
-                    <td class="text-center">${no}</td>
-                    <td><strong>${nama}</strong></td>
-                    <td class="skor-style">${skor}</td>
-                    <td>${waktu}</td>
+                    <th style="width: 7%;">No</th>
+                    <th style="width: 15%;">NIK</th>
+                    <th>Nama Peserta</th>
+                    <th style="width: 15%;">Skor / Nilai</th>
+                    <th style="width: 30%;">Tanggal & Waktu Selesai</th>
                 </tr>
-            `;
-        });
+            </thead>
+            <tbody>
+    `;
+
+    rows.forEach((row, index) => {
+        // Hati-hati: Pastikan index sel sesuai dengan urutan di tabel HTML Sampean
+        let no = index + 1;
+        let nik = row.cells[1] ? row.cells[1].innerText : "-"; 
+        let nama = row.cells[2] ? row.cells[2].innerText : "-";
+        let skor = row.cells[3] ? row.cells[3].innerText : "0";
+        let waktu = row.cells[4] ? row.cells[4].innerText : "-";
 
         printContent += `
-                </tbody>
-            </table>
-            <div class="ttd-container">
-                <p>Mengetahui,</p>
-                <p style="font-weight: bold; margin-top:0;">Panitia Pelaksana CBT</p>
-                <div class="space-ttd"></div>
-                <p>__________________________</p>
-                <p style="color: #555; font-size: 11px; margin: 0;">Admin Sistem</p>
-            </div>
-        </body>
-        </html>
+            <tr>
+                <td class="text-center">${no}</td>
+                <td>${nik}</td>
+                <td><strong>${nama}</strong></td>
+                <td class="skor-style">${skor}</td>
+                <td>${waktu}</td>
+            </tr>
         `;
+    });
 
-        const jendelaCetak = window.open("", "_blank");
-        jendelaCetak.document.write(printContent);
-        jendelaCetak.document.close();
-        
-        setTimeout(() => {
-            jendelaCetak.print();
-        }, 400);
-    }
+    printContent += `
+            </tbody>
+        </table>
+        <div class="ttd-container">
+            
+            <p style="font-weight: bold; margin-top:0;">Admin / Proktor CBT</p>
+            <div class="space-ttd"></div>
+<p style="font-weight: bold; margin-top: 5px;">${namaPengawas}</p>
+            
+            
+        </div>
+    </body>
+    </html>
+    `;
+
+    const jendelaCetak = window.open("", "_blank");
+    jendelaCetak.document.write(printContent);
+    jendelaCetak.document.close();
+    
+    setTimeout(() => {
+        jendelaCetak.print();
+    }, 400);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     // =========================================================================
@@ -1638,87 +1684,85 @@
     // [OPTIMIZED] ENGINE CETAK BERITA ACARA UJIAN DENGAN SINKRONISASI LOKAL
     // =========================================================================
     function cetakBeritaAcara() {
-        let totalPeserta = document.getElementById('statTotalPeserta') ? document.getElementById('statTotalPeserta').innerText : "0";
-        let pesertaLogin = document.getElementById('statPesertaLogin') ? document.getElementById('statPesertaLogin').innerText : "0";
-        let pesertaSelesai = document.getElementById('statPesertaSelesai') ? document.getElementById('statPesertaSelesai').innerText : "0";
+    let totalPeserta = document.getElementById('statTotalPeserta') ? document.getElementById('statTotalPeserta').innerText : "0";
+    let pesertaLogin = document.getElementById('statPesertaLogin') ? document.getElementById('statPesertaLogin').innerText : "0";
+    let pesertaSelesai = document.getElementById('statPesertaSelesai') ? document.getElementById('statPesertaSelesai').innerText : "0";
+    
+    let judulAktif = localStorage.getItem('judulUjian') || "UJIAN CBT";
+    let namaPengawas = localStorage.getItem('namaPengawas') || "_______________________";
+    let namaProktor = localStorage.getItem('namaProktor') || "_______________________";
+
+    let tanggalStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    let printContent = `
+    <html>
+    <head>
+        <title>Berita Acara - ${judulAktif}</title>
+        <style>
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 40px; color: #111; line-height: 1.6; }
+            .kop-surat { text-align: center; margin-bottom: 30px; border-bottom: 3px double #111; padding-bottom: 15px; }
+            .kop-surat h2 { margin: 0; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
+            .kop-surat p { margin: 5px 0 0 0; font-size: 14px; }
+            .judul { text-align: center; font-weight: bold; text-decoration: underline; font-size: 16px; margin-bottom: 20px; }
+            .isi { text-align: justify; font-size: 14px; margin-bottom: 30px; }
+            table.rincian { width: 80%; margin: 0 auto 30px auto; border-collapse: collapse; }
+            table.rincian td { padding: 8px; font-size: 14px; }
+            table.rincian td:first-child { width: 40%; font-weight: bold; }
+            .ttd-container { display: flex; justify-content: space-between; margin-top: 50px; }
+            .box-ttd { text-align: center; width: 250px; font-size: 14px; }
+            .space-ttd { height: 80px; }
+            @media print {
+                @page { size: A4; margin: 2cm; }
+                body { margin: 0; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="kop-surat">
+            <h2>PANITIA PELAKSANA ${judulAktif.toUpperCase()}</h2>
+        </div>
         
-        // [BARU]: Sinkronisasi data dinamis dari pengelolaan internal lokal
-        let judulAktif = localStorage.getItem('judulUjian') || "UJIAN CBT";
-        let namaPengawas = localStorage.getItem('namaPengawas') || "_______________________";
-        let namaProktor = localStorage.getItem('namaProktor') || "_______________________";
-
-        let tanggalStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
-        let printContent = `
-        <html>
-        <head>
-            <title>Berita Acara - ${judulAktif}</title>
-            <style>
-                body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 40px; color: #111; line-height: 1.6; }
-                .kop-surat { text-align: center; margin-bottom: 30px; border-bottom: 3px double #111; padding-bottom: 15px; }
-                .kop-surat h2 { margin: 0; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
-                .kop-surat p { margin: 5px 0 0 0; font-size: 14px; }
-                .judul { text-align: center; font-weight: bold; text-decoration: underline; font-size: 16px; margin-bottom: 20px; }
-                .isi { text-align: justify; font-size: 14px; margin-bottom: 30px; }
-                table.rincian { width: 80%; margin: 0 auto 30px auto; border-collapse: collapse; }
-                table.rincian td { padding: 8px; font-size: 14px; }
-                table.rincian td:first-child { width: 40%; font-weight: bold; }
-                .ttd-container { display: flex; justify-content: space-between; margin-top: 50px; }
-                .box-ttd { text-align: center; width: 250px; font-size: 14px; }
-                .space-ttd { height: 80px; }
-                @media print {
-                    @page { size: A4; margin: 2cm; }
-                    body { margin: 0; }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="kop-surat">
-                <h2>PANITIA PELAKSANA ${judulAktif.toUpperCase()}</h2>
-                <p>Laporan Pelaksanaan Evaluasi Akademik Berbasis Komputer</p>
-            </div>
-            
-            <div class="judul">BERITA ACARA PELAKSANAAN UJIAN</div>
-            
-            <div class="isi">
-                <p>Pada hari ini, <b>${tanggalStr}</b>, telah dilaksanakan Ujian berbasis Computer Based Test (CBT) untuk <b>${judulAktif}</b>. Berdasarkan data rekapitulasi real-time dari sistem, rincian aktivitas kelas dilaporkan sebagai berikut:</p>
-            </div>
-
-            <table class="rincian">
-                <tr><td>Total Peserta Terdaftar</td><td>: ${totalPeserta} Orang</td></tr>
-                <tr><td>Peserta Hadir / Login</td><td>: ${pesertaLogin} Orang</td></tr>
-                <tr><td>Peserta Selesai Mengerjakan</td><td>: ${pesertaSelesai} Orang</td></tr>
-                <tr><td>Status Kelas & Keamanan</td><td>: Berjalan dengan Aman dan Lancar</td></tr>
-            </table>
-
-            <div class="isi">
-                <p>Demikian berita acara ini dibuat dengan sebenar-benarnya secara otomatis oleh sistem pusat evaluasi untuk dipergunakan sebagaimana mestinya.</p>
-            </div>
-
-            <div class="ttd-container">
-                <div class="box-ttd">
-                    <p>Pengawas Ujian,</p>
-                    <div class="space-ttd"></div>
-                    <p style="font-weight: bold; text-decoration: underline;">( ${namaPengawas} )</p>
-                </div>
-                <div class="box-ttd">
-                    <p>Admin / Proktor CBT,</p>
-                    <div class="space-ttd"></div>
-                    <p style="font-weight: bold; text-decoration: underline;">( ${namaProktor} )</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        `;
-
-        const jendelaCetak = window.open("", "_blank");
-        jendelaCetak.document.write(printContent);
-        jendelaCetak.document.close();
+        <div class="judul">BERITA ACARA PELAKSANAAN UJIAN</div>
         
-        setTimeout(() => {
-            jendelaCetak.print();
-        }, 400);
-    }
+        <div class="isi">
+            <p>Pada hari ini, <b>${tanggalStr}</b>, telah dilaksanakan Ujian berbasis Computer Based Test (CBT) untuk <b>${judulAktif}</b>. Berdasarkan data rekapitulasi real-time dari sistem, rincian aktivitas kelas dilaporkan sebagai berikut:</p>
+        </div>
+
+        <table class="rincian">
+            <tr><td>Total Peserta Terdaftar</td><td>: ${totalPeserta} Orang</td></tr>
+            <tr><td>Peserta Hadir / Login</td><td>: ${pesertaLogin} Orang</td></tr>
+            <tr><td>Peserta Selesai Mengerjakan</td><td>: ${pesertaSelesai} Orang</td></tr>
+            <tr><td>Status Kelas & Keamanan</td><td>: Berjalan dengan Aman dan Lancar</td></tr>
+        </table>
+
+        <div class="isi">
+            <p>Demikian berita acara ini dibuat dengan sebenar-benarnya secara otomatis oleh sistem pusat evaluasi untuk dipergunakan sebagaimana mestinya.</p>
+        </div>
+
+        <div class="ttd-container">
+            <div class="box-ttd">
+                <p>Ketua Panitia,</p> <!-- Sudah diganti -->
+                <div class="space-ttd"></div>
+                <p style="font-weight: bold; text-decoration: underline;">( ${namaPengawas} )</p>
+            </div>
+            <div class="box-ttd">
+                <p>Admin / Proktor CBT,</p>
+                <div class="space-ttd"></div>
+                <p style="font-weight: bold; text-decoration: underline;">( ${namaProktor} )</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+
+    const jendelaCetak = window.open("", "_blank");
+    jendelaCetak.document.write(printContent);
+    jendelaCetak.document.close();
+    
+    setTimeout(() => {
+        jendelaCetak.print();
+    }, 400);
+}
 
 
     // =========================================================================
@@ -1885,12 +1929,239 @@ setInterval(() => {
     }
 }, 1000);
 
+
+
+
+
+
+
+
+
+
+
+
 // Sangkutkan pembaruan data ke sistem dashboard utama Sampean yang sudah ada
 const originalInisialisasiDashboard = window.inisialisasiDashboard;
 window.inisialisasiDashboard = function() {
     if(typeof originalInisialisasiDashboard === 'function') originalInisialisasiDashboard();
     setTimeout(() => { updateMiniMonitor(); }, 800);
 };
+</script>
+
+<!-- ========================================================================= -->
+<!-- HALAMAN LIVE SKOR (VERSI BERSIH - HANYA NAMA FORMASI) -->
+<!-- ========================================================================= -->
+<div id="page-live-skor" style="display: none; position: fixed; top: 65px; left: 260px; right: 0; bottom: 0; background-color: #f8fafc; z-index: 999; overflow-y: auto; padding: 24px; box-sizing: border-box; font-family: sans-serif;">
+    
+    <!-- Kotak Konten Internal -->
+    <div style="background-color: #ffffff; border-radius: 12px; padding: 24px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+        
+        <!-- Kepala Halaman -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px;">
+            <div style="text-align: left;">
+                <h2 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #1e293b;">🏆 Leaderboard Live Score</h2>
+                <!-- Nama Formasi akan muncul di sini tanpa embel-embel teks -->
+                <p id="subJudulLiveSkorKecil" style="margin: 6px 0 0 0; font-size: 1.1rem; color: #059669; font-weight: 800;">Memuat...</p>
+            </div>
+            <button onclick="jalankanLiveSkor()" style="background-color: #059669; color: #ffffff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-sync-alt"></i> Refresh Skor
+            </button>
+        </div>
+        
+        <!-- Tabel Leaderboard -->
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem;">
+                <thead>
+                    <tr style="background-color: #f8fafc; border-bottom: 2px solid #cbd5e1;">
+                        <th style="padding: 12px; text-align: center; width: 70px; color: #475569; font-weight: 700;">Rank</th>
+                        <th style="padding: 12px; width: 200px; color: #475569; font-weight: 700;">NIK</th>
+                        <th style="padding: 12px; color: #475569; font-weight: 700;">Nama Lengkap</th>
+                        <th style="padding: 12px; text-align: center; width: 250px; color: #475569; font-weight: 700;">Status</th>
+                        <th style="padding: 12px; text-align: center; width: 120px; color: #475569; font-weight: 700;">Skor</th>
+                    </tr>
+                </thead>
+                <tbody id="tblLiveSkorPageBody">
+                    <tr><td colspan="5" style="text-align: center; padding: 30px; color: #94a3b8;">Menunggu peserta memulai ujian...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// =========================================================================
+// LOGIKA REFRESH OTOMATIS & INTEGRASI MENU SIDEBAR
+// =========================================================================
+if (!window.originalSwitchAdminTab) {
+    window.originalSwitchAdminTab = window.switchAdminTab;
+}
+
+window.liveSkorAutoRefreshTimer = null;
+
+window.switchAdminTab = function(tabName) {
+    const liveSkorPage = document.getElementById('page-live-skor');
+    const menuLiveSkor = document.getElementById('menu-live-skor');
+    
+    const allMenus = Array.from(document.querySelectorAll('li')).filter(li => {
+        const onclickStr = li.getAttribute('onclick') || '';
+        return onclickStr.includes('switchAdminTab');
+    });
+
+    if (tabName === 'live-skor') {
+        if (liveSkorPage) liveSkorPage.style.display = 'block';
+        jalankanLiveSkor();
+
+        if (!window.liveSkorAutoRefreshTimer) {
+            window.liveSkorAutoRefreshTimer = setInterval(() => {
+                jalankanLiveSkor();
+            }, 3000); 
+        }
+
+        let currentActiveMenu = null;
+        allMenus.forEach(li => {
+            if (li.id !== 'menu-live-skor') {
+                if (li.classList.contains('active') || li.className.includes('active') || li.className.includes('bg-')) {
+                    currentActiveMenu = li;
+                }
+            }
+        });
+
+        if (!currentActiveMenu) {
+            let maxClasses = 0;
+            allMenus.forEach(li => {
+                if (li.id !== 'menu-live-skor' && li.classList.length > maxClasses) {
+                    maxClasses = li.classList.length;
+                    currentActiveMenu = li;
+                }
+            });
+        }
+
+        if (currentActiveMenu && menuLiveSkor) {
+            window.lastActiveMenuTemplate = currentActiveMenu;
+            const activeClasses = [];
+            currentActiveMenu.classList.forEach(cls => {
+                if (!menuLiveSkor.classList.contains(cls)) activeClasses.push(cls);
+            });
+            window.savedActiveClasses = activeClasses;
+
+            activeClasses.forEach(cls => {
+                currentActiveMenu.classList.remove(cls);
+                menuLiveSkor.classList.add(cls);
+            });
+            menuLiveSkor.classList.add('active');
+            currentActiveMenu.classList.remove('active');
+        }
+
+    } else {
+        if (liveSkorPage) liveSkorPage.style.display = 'none';
+        
+        if (window.liveSkorAutoRefreshTimer) {
+            clearInterval(window.liveSkorAutoRefreshTimer);
+            window.liveSkorAutoRefreshTimer = null;
+        }
+        
+        if (window.lastActiveMenuTemplate && menuLiveSkor && window.savedActiveClasses) {
+            window.savedActiveClasses.forEach(cls => {
+                menuLiveSkor.classList.remove(cls);
+                window.lastActiveMenuTemplate.classList.add(cls);
+            });
+            menuLiveSkor.classList.remove('active');
+        }
+
+        if (typeof window.originalSwitchAdminTab === 'function') {
+            window.originalSwitchAdminTab(tabName);
+        }
+    }
+};
+
+// =========================================================================
+// RUMUS DETEKTIF: HANYA MENGAMBIL NAMA FORMASI
+// =========================================================================
+function dapatkanJudulUjianSecaraOtomatis() {
+    let semuaElemen = document.querySelectorAll('div, p, span, label, font, h4');
+    for (let el of semuaElemen) {
+        let teks = el.textContent || '';
+        if (teks.includes('Judul Ujian / Formasi') || (teks.includes('Judul Ujian') && teks.includes('Formasi'))) {
+            let container = el.parentElement;
+            if (container) {
+                let targetInput = container.querySelector('input[type="text"], input');
+                if (targetInput && targetInput.value) {
+                    let hasilVal = targetInput.value.trim();
+                    if (hasilVal !== "" && hasilVal.toLowerCase() !== 'admin' && isNaN(hasilVal)) {
+                        return hasilVal;
+                    }
+                }
+            }
+        }
+    }
+    return "APARAT DESA POTANGA";
+}
+
+// =========================================================================
+// MESIN PEMPROSES DATA LEADERBOARD
+// =========================================================================
+function jalankanLiveSkor() {
+    if(typeof updateMiniMonitor === 'function') {
+        updateMiniMonitor();
+    }
+
+    // UPDATE HANYA NAMA FORMASINYA SAJA
+    const labelSubJudulKecil = document.getElementById('subJudulLiveSkorKecil');
+    if (labelSubJudulKecil) {
+        labelSubJudulKecil.innerText = dapatkanJudulUjianSecaraOtomatis();
+    }
+
+    const body = document.getElementById('tblLiveSkorPageBody');
+    if (!body) return;
+
+    if (!window.listPesertaGlobal || window.listPesertaGlobal.length === 0) {
+        body.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 30px; color: #94a3b8;">Belum ada data peserta yang termuat di sistem.</td></tr>`;
+        return;
+    }
+
+    let pesertaAktif = window.listPesertaGlobal.filter(p => {
+        let statusKini = p.status ? p.status.trim() : "";
+        return statusKini.includes("Aktif Mengerjakan") || statusKini.includes("Selesai");
+    });
+
+    if (pesertaAktif.length === 0) {
+        body.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: #64748b; font-weight: 600;">Belum ada peserta dengan status "Aktif Mengerjakan" atau "Selesai". Halaman akan otomatis memuat data begitu ujian dimulai.</td></tr>`;
+        return;
+    }
+
+    pesertaAktif.sort((a, b) => {
+        return (parseFloat(b.skor) || 0) - (parseFloat(a.skor) || 0);
+    });
+
+    body.innerHTML = "";
+    pesertaAktif.forEach((p, index) => {
+        let badgeColor = "#16a34a"; let badgeBg = "#dcfce7";
+        let statusKini = p.status || "Aktif Mengerjakan";
+        
+        if (statusKini.includes("Aktif Mengerjakan")) { 
+            badgeColor = "#d97706"; 
+            badgeBg = "#fef3c7";
+        } else if (statusKini.includes("Diskualifikasi") || statusKini.includes("Curang") || statusKini.includes("Pelanggaran")) {
+            badgeColor = "#dc2626"; 
+            badgeBg = "#fee2e2";
+        }
+
+        let skorTampil = p.skor !== undefined && p.skor !== null ? p.skor : "0";
+        let rankNomor = index + 1;
+
+        body.innerHTML += `
+            <tr style="border-bottom: 1px solid #e2e8f0; transition: background-color 0.2s;">
+                <td style="padding: 12px; text-align: center; font-weight: 700; color: #1e293b; background-color: #f8fafc;">${rankNomor}</td>
+                <td style="padding: 12px; font-family: monospace; font-size: 0.95rem; color: #334155; font-weight: 600;">${p.username}</td>
+                <td style="padding: 12px; font-weight: 600; color: #0f172a;">${p.nama}</td>
+                <td style="padding: 12px; text-align: center;">
+                    <span style="padding: 5px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; color: ${badgeColor}; background: ${badgeBg}; display: inline-block; box-shadow: inset 0 -1px 0 rgba(0,0,0,0.05);">${statusKini}</span>
+                </td>
+                <td style="padding: 12px; text-align: center; font-weight: 800; font-size: 1.1rem; color: #059669; background-color: #f8fafc; border-left: 1px solid #f1f5f9;">${skorTampil}</td>
+            </tr>
+        `;
+    });
+}
 </script>
 </body>
 </html>
