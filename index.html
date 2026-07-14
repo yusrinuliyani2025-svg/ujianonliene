@@ -270,8 +270,10 @@
         <li id="menu-soal" onclick="switchAdminTab('soal')"><i class="fa-solid fa-file-lines"></i> Manajemen Soal</li>
         <li id="menu-set" onclick="switchAdminTab('set')"><i class="fa-solid fa-gear"></i> Pengaturan & Token</li>
         <li id="menu-hasil" onclick="switchAdminTab('hasil')"><i class="fa-solid fa-square-poll-vertical"></i> Hasil Ujian</li>
-        <li id="menu-live-skor" onclick="switchAdminTab('live-skor')" style="cursor: pointer;"><i class="fa-solid fa-chart-column text-emerald-500"></i> Live Skor Real-Time</li>
-    </ul>
+
+        <li id="menu-live-skor" onclick="switchAdminTab('live-skor')" style="cursor: pointer;">
+    <i class="fa-solid fa-chart-column text-emerald-500"></i> Live Skor Real-Time
+</li>
 </nav>
              
 
@@ -403,7 +405,7 @@
                             <button class="btn" style="width:auto; background: var(--primary);" onclick="openAddPesertaModal()"><i class="fa-solid fa-user-plus"></i> Tambah Peserta</button>
                             <button class="btn" style="width:auto; background: #0284c7;" onclick="downloadTemplatePeserta()"><i class="fa-solid fa-download"></i> Template</button>
                             <button class="btn" style="width:auto; background: var(--success);" onclick="document.getElementById('filePesertaCsv').click()"><i class="fa-solid fa-file-excel"></i> Unggah Massal</button>
-			    <button class="btn" style="background:var(--success); color:white;" onclick="cetakKartuUjianMasal()">
+                <button class="btn" style="background:var(--success); color:white;" onclick="cetakKartuUjianMasal()">
     <i class="fa-solid fa-print"></i> Cetak Semua Kartu Ujian
 </button>
                             <input type="file" id="filePesertaCsv" accept=".csv" class="hidden" onchange="prosesUnggahPesertaCsv()">
@@ -745,17 +747,70 @@
         }
     }
 
-    function switchAdminTab(tabName) {        
-        document.querySelectorAll('.admin-section').forEach(s => s.classList.add('hidden'));        
-        document.querySelectorAll('.sidebar-menu li').forEach(m => m.classList.remove('active'));        
-        const targetTab = document.getElementById(`tab-${tabName}`);        
-        const targetMenu = document.getElementById(`menu-${tabName}`);        
-        if(targetTab) targetTab.classList.remove('hidden');        
-        if(targetMenu) targetMenu.classList.add('active');        
-        if(tabName === 'peserta' && typeof loadPesertaData === 'function') loadPesertaData();        
-        if(tabName === 'set' && typeof loadSystemSettings === 'function') loadSystemSettings();     
-        if(tabName === 'hasil') loadHasilUjianData();     
+    function switchAdminTab(tabName) {
+    console.log("--- Menjalankan fungsi switchAdminTab untuk: " + tabName + " ---");
+    
+    // 1. Sembunyikan semua section
+    document.querySelectorAll('.admin-section').forEach(s => s.classList.add('hidden'));
+    
+    // 2. Hapus class active dari semua menu
+    document.querySelectorAll('.sidebar-menu li').forEach(m => m.classList.remove('active'));
+    
+    // 3. Tampilkan tab yang dituju
+    const targetTab = document.getElementById('tab-' + tabName);
+    if (targetTab) {
+        targetTab.classList.remove('hidden');
+        console.log("Tab berhasil ditampilkan: tab-" + tabName);
+    } else {
+        console.warn("Peringatan: Elemen tab-" + tabName + " tidak ditemukan!");
     }
+    
+    // 4. Tandai menu sebagai aktif
+    const targetMenu = document.getElementById('menu-' + tabName);
+    if (targetMenu) {
+        targetMenu.classList.add('active');
+    }
+    
+    // 5. Jalankan fungsi khusus jika ada
+    if (tabName === 'live-skor' && typeof jalankanLiveSkor === 'function') {
+        console.log("Menjalankan mesin Live Skor...");
+        jalankanLiveSkor();
+    }
+    
+    if(tabName === 'peserta' && typeof loadPesertaData === 'function') loadPesertaData();        
+    if(tabName === 'set' && typeof loadSystemSettings === 'function') loadSystemSettings();    
+    if(tabName === 'hasil' && typeof loadHasilUjianData === 'function') loadHasilUjianData();    
+}
+
+   
+
+
+// JURUS MANDIRI: Mengatur tampilan tanpa bergantung fungsi lain
+document.addEventListener('DOMContentLoaded', function() {
+    const tombolLiveSkor = document.getElementById('menu-live-skor');
+    if (tombolLiveSkor) {
+        tombolLiveSkor.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log("Klik terdeteksi! Memaksa perubahan tab...");
+
+            // 1. Sembunyikan semua tab (menghapus kelas 'hidden' atau menambahnya)
+            document.querySelectorAll('.admin-section').forEach(s => s.classList.add('hidden'));
+
+            // 2. Tampilkan tab Live Skor (Pastikan ID-nya 'page-live-skor')
+            const target = document.getElementById('page-live-skor');
+            if (target) {
+                target.classList.remove('hidden');
+                console.log("Berhasil: Menampilkan #page-live-skor");
+            } else {
+                alert("Gagal: Div dengan ID 'page-live-skor' tidak ditemukan di HTML!");
+            }
+
+            // 3. Memberi efek aktif pada menu
+            document.querySelectorAll('.sidebar-menu li').forEach(m => m.classList.remove('active'));
+            tombolLiveSkor.classList.add('active');
+        });
+    }
+});
 
    async function loadHasilUjianData() {
     const body = document.getElementById('tblHasilBody');
@@ -1966,8 +2021,7 @@ window.inisialisasiDashboard = function() {
 <!-- ========================================================================= -->
 <!-- HALAMAN LIVE SKOR (VERSI BERSIH - HANYA NAMA FORMASI) -->
 <!-- ========================================================================= -->
-<div id="page-live-skor" style="display: none; width: 100%; box-sizing: border-box; font-family: sans-serif; padding: 20px;">
-    
+<div id="page-live-skor" class="admin-section hidden" style="width: 100%; box-sizing: border-box; font-family: sans-serif; padding: 20px;">
     <!-- Bagian Konten (Tanpa style box-shadow/border agar menyatu) -->
     <div>
         
